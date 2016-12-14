@@ -10,7 +10,7 @@ use utils::IntoUrl;
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie> {
         if let Some(set_cookie) = self.headers().get::<SetCookie>() {
-            // hyper is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
+            // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
             // the
             // correct version
             set_cookie.iter()
@@ -36,7 +36,7 @@ impl CarriesCookies for reqwest::RequestBuilder {
             debug!("no cookies to add to request");
             self
         } else {
-            // again, hyper cookie version mismatches ours, so need to do some tricks
+            // again, reqwest cookie version mismatches ours, so need to do some tricks
             let cookie_bytes = &cookies.iter()
                 .map(|rc| rc.pair().to_string().into_bytes())
                 .collect::<Vec<_>>()[..];
