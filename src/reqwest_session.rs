@@ -1,17 +1,16 @@
 use cookie_store::CookieStore;
-use hyper;
-use hyper::client::response::Response as HyperResponse;
-use hyper::header::{Header, SetCookie};
-use hyper::header::Cookie as CookieHeader;
+use reqwest;
+use reqwest::header::{Header, SetCookie};
+use reqwest::header::Cookie as CookieHeader;
 use raw_cookie::Cookie as RawCookie;
 use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
 use utils::IntoUrl;
 
-impl HasSetCookie for HyperResponse {
+impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie> {
-        if let Some(set_cookie) = self.headers.get::<SetCookie>() {
-            // hyper is using cookie 0.1, we are on 0.2, so to_string()/parse() to get to
+        if let Some(set_cookie) = self.headers().get::<SetCookie>() {
+            // hyper is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
             // the
             // correct version
             set_cookie.iter()
@@ -31,7 +30,7 @@ impl HasSetCookie for HyperResponse {
     }
 }
 
-impl<'a> CarriesCookies for hyper::client::RequestBuilder<'a> {
+impl CarriesCookies for reqwest::RequestBuilder {
     fn add_cookies(self, cookies: Vec<&RawCookie>) -> Self {
         if 0 == cookies.len() {
             debug!("no cookies to add to request");
@@ -55,27 +54,27 @@ impl<'a> CarriesCookies for hyper::client::RequestBuilder<'a> {
     }
 }
 
-pub type HyperSession = Session<hyper::client::Client>;
-impl<'b> WithSession<'b> for HyperSession {
-    type Request = hyper::client::RequestBuilder<'b>;
-    type Response = HyperResponse;
-    type SendError = hyper::error::Error;
+pub type ReqwestSession = Session<reqwest::Client>;
+impl<'b> WithSession<'b> for ReqwestSession {
+    type Request = reqwest::RequestBuilder;
+    type Response = reqwest::Response;
+    type SendError = reqwest::Error;
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
-    define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
+    define_req_with!(delete_with, |url, &client| unimplemented!());
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    define_req_with!(put_with, |url, &client| client.put(url.clone()));
+    define_req_with!(put_with, |url, &client| unimplemented!());
 }
 
-impl ::std::ops::Deref for HyperSession {
+impl ::std::ops::Deref for ReqwestSession {
     type Target = CookieStore;
     fn deref(&self) -> &Self::Target {
         &self.store
     }
 }
 
-impl ::std::ops::DerefMut for HyperSession {
+impl ::std::ops::DerefMut for ReqwestSession {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.store
     }
@@ -84,9 +83,10 @@ impl ::std::ops::DerefMut for HyperSession {
 #[cfg(test)]
 mod tests {
     use env_logger;
-    use hyper::client::Client as HyperClient;
+    use reqwest;
+
     use session::WithSession;
-    use super::HyperSession;
+    use super::ReqwestSession;
 
     macro_rules! dump {
         ($e: expr, $i: ident) => ({
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn test_gets() {
         env_logger::init().unwrap();
-        let mut s = HyperSession::new(HyperClient::new());
+        let mut s = ReqwestSession::new(reqwest::Client::new().expect("unable to create Client"));
         dump!("init", s);
         s.get_with("http://www.google.com", |req| req.send())
             .expect("www.google.com get_with failed");

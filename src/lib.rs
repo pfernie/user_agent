@@ -1,7 +1,6 @@
 #![feature(proc_macro)]
 extern crate cookie as raw_cookie;
 extern crate env_logger;
-extern crate hyper;
 extern crate idna;
 #[macro_use]
 extern crate log;
@@ -9,6 +8,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate reqwest;
 extern crate time;
 extern crate try_from;
 extern crate url;
@@ -26,9 +26,8 @@ pub use cookie_store::CookieStore;
 #[macro_use]
 mod session;
 pub use session::{Session, WithSession};
+mod reqwest_session;
 mod utils;
-mod hyper_session;
-pub use hyper_session::HyperSession;
 use serde_json::error::Error as JsonError;
 
 use idna::uts46::Errors as IdnaError;

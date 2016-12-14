@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["patrick.fernie@gmail.com"]
 
 [dependencies]
-cookie = { version = "0.3", features = ["serialize-serde"] }
+cookie = { version = "0.4", features = ["serialize-serde"] }
 env_logger = "0.3"
-hyper = "0.9"
 idna = "0.1"
 log = "0.3"
+reqwest = "0.2"
 serde = "0.8"
 serde_json = "0.8"
 serde_derive = "0.8"
