@@ -58,12 +58,11 @@ pub trait WithSession<'b> {
 
 #[macro_export]
 macro_rules! define_req_with {
-    ($with_fn: ident, $mk_client: expr, |$u: ident, &$client: ident| $mk_req: expr) => {
+    ($with_fn: ident, |$u: ident, &$client: ident| $mk_req: expr) => {
         fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response, Self::SendError>
             where U: IntoUrl,
                   P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
                   {
-                      self.client = $mk_client;
                       let $u: Url = try!($u.into_url());
                       let res = {
                           let $client = &self.client;
@@ -75,12 +74,11 @@ macro_rules! define_req_with {
                       Ok(res)
                   }
     };
-    ($with_fn: ident, $mk_client: expr, |$u: ident, &mut $client: ident| $mk_req: expr) => {
+    ($with_fn: ident, |$u: ident, &mut $client: ident| $mk_req: expr) => {
         fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response, Self::SendError>
             where U: IntoUrl,
                   P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
                   {
-                      self.client = $mk_client;
                       let $u: Url = try!($u.into_url());
                       let res = {
                           let $client = &mut self.client;
@@ -308,11 +306,11 @@ mod tests {
         type Response = TestClientResponse;
         type SendError = TestError;
 
-        define_req_with!(get_with, TestClient, |url, &client| client.request(&url));
-        define_req_with!(head_with, TestClient, |url, &client| client.request(&url));
-        define_req_with!(delete_with, TestClient, |url, &client| client.request(&url));
-        define_req_with!(post_with, TestClient, |url, &client| client.request(&url));
-        define_req_with!(put_with, TestClient, |url, &client| client.request(&url));
+        define_req_with!(get_with, |url, &client| client.request(&url));
+        define_req_with!(head_with, |url, &client| client.request(&url));
+        define_req_with!(delete_with, |url, &client| client.request(&url));
+        define_req_with!(post_with, |url, &client| client.request(&url));
+        define_req_with!(put_with, |url, &client| client.request(&url));
     }
 
     #[derive(Debug, Clone, PartialEq)]

@@ -61,21 +61,11 @@ impl<'b> WithSession<'b> for HyperSession {
     type Response = HyperResponse;
     type SendError = hyper::error::Error;
 
-    define_req_with!(get_with,
-                     hyper::client::Client::new(),
-                     |url, &client| client.get(url.clone()));
-    define_req_with!(head_with,
-                     hyper::client::Client::new(),
-                     |url, &client| client.head(url.clone()));
-    define_req_with!(delete_with,
-                     hyper::client::Client::new(),
-                     |url, &client| client.delete(url.clone()));
-    define_req_with!(post_with,
-                     hyper::client::Client::new(),
-                     |url, &client| client.post(url.clone()));
-    define_req_with!(put_with,
-                     hyper::client::Client::new(),
-                     |url, &client| client.put(url.clone()));
+    define_req_with!(get_with, |url, &client| client.get(url.clone()));
+    define_req_with!(head_with, |url, &client| client.head(url.clone()));
+    define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
+    define_req_with!(post_with, |url, &client| client.post(url.clone()));
+    define_req_with!(put_with, |url, &client| client.put(url.clone()));
 }
 
 impl ::std::ops::Deref for HyperSession {
@@ -114,26 +104,24 @@ mod tests {
 
     #[test]
     fn test_gets() {
-        fn run_get<'c>(s: &mut HyperSession,
-                       url: &str)
-                       -> Result<::hyper::client::response::Response, ::hyper::error::Error> {
-            s.get_with(url, |req| req.send())
-        }
         env_logger::init().unwrap();
         let mut s = HyperSession::new(HyperClient::new());
         dump!("init", s);
-        run_get(&mut s, "http://www.google.com/").unwrap();
+        s.get_with("http://www.google.com", |req| req.send())
+            .expect("www.google.com get_with failed");
         let c1 = s.iter_unexpired().count();
         assert!(c1 > 0);
-        run_get(&mut s, "http://www.google.com/").unwrap();
+        s.get_with("http://www.google.com", |req| req.send())
+            .expect("www.google.com get_with failed");
         assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
-        run_get(&mut s, "http://www.yahoo.com/").unwrap();
+        s.get_with("http://www.yahoo.com", |req| req.send())
+            .expect("www.yahoo.com get_with failed");
         dump!("after yahoo", s);
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        run_get(&mut s, "http://www.msn.com/").unwrap();
+        s.get_with("http://www.msn.com", |req| req.send()).expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
         assert!(c3 > 0);

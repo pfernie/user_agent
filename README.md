@@ -2,6 +2,9 @@
 * error-chain
 * env_logger
 
+# Ergonomics
+* change get_with, etc. to not take a closure for "prepare_and_send"?
+
 # FIXME
 - [ ] are re-directs handled correctly?
 
