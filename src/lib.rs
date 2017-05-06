@@ -1,4 +1,3 @@
-#![feature(proc_macro)]
 extern crate cookie as raw_cookie;
 extern crate env_logger;
 extern crate idna;
