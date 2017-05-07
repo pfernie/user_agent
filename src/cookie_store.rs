@@ -275,7 +275,7 @@ impl CookieStore {
 
     /// Load JSON-formatted cookies from `reader`, skipping any __expired__ cookies
     pub fn load_json<R: BufRead>(reader: R) -> StoreResult<CookieStore> {
-        CookieStore::load(reader, ::serde_json::from_str)
+        CookieStore::load(reader, |cookie| ::serde_json::from_str(cookie))
     }
 }
 
