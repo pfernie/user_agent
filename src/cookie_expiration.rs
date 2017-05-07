@@ -71,11 +71,28 @@ impl From<u64> for CookieExpiration {
 impl From<time::Tm> for CookieExpiration {
     fn from(utc_tm: Tm) -> CookieExpiration {
         // format & re-parse the Tm to make sure de/serialization is consistent
-        let serializable_tm = SerializableTm::from(time::strptime(&format!("{}",
-                                                                           utc_tm.rfc3339()),
-                                                                  "%Y-%m-%dT%H:%M:%SZ")
-            .expect("unable to format & re-parse utc_tm"));
-        CookieExpiration::AtUtc(serializable_tm)
+        let utc_tm = match time::strptime(&format!("{}", utc_tm.rfc3339()), "%Y-%m-%dT%H:%M:%SZ") {
+            Ok(utc_tm) => utc_tm,
+            Err(_) => {
+                time::strptime("9999-12-31T23:59:59Z", "%Y-%m-%dT%H:%M:%SZ")
+                    .expect("unable to strptime maximum value")
+            }
+        };
+        CookieExpiration::AtUtc(SerializableTm::from(utc_tm))
+    }
+}
+
+impl From<time::Duration> for CookieExpiration {
+    fn from(duration: time::Duration) -> Self {
+        // If delta-seconds is less than or equal to zero (0), let expiry-time
+        //    be the earliest representable date and time.  Otherwise, let the
+        //    expiry-time be the current date and time plus delta-seconds seconds.
+        let utc_tm = if duration.is_zero() {
+            time::at_utc(time::Timespec::new(0, 0))
+        } else {
+            time::now_utc() + duration
+        };
+        CookieExpiration::from(utc_tm)
     }
 }
 

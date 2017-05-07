@@ -8,14 +8,14 @@ use url::Url;
 use utils::IntoUrl;
 
 impl HasSetCookie for reqwest::Response {
-    fn parse_set_cookie(&self) -> Vec<RawCookie> {
+    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         if let Some(set_cookie) = self.headers().get::<SetCookie>() {
             // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
             // the
             // correct version
             set_cookie.iter()
                 .filter_map(|h_c| {
-                    match RawCookie::parse(&h_c.to_string()[..]) {
+                    match RawCookie::parse(h_c.to_string()) {
                         Ok(raw_cookie) => Some(raw_cookie),
                         Err(e) => {
                             debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
@@ -31,14 +31,14 @@ impl HasSetCookie for reqwest::Response {
 }
 
 impl CarriesCookies for reqwest::RequestBuilder {
-    fn add_cookies(self, cookies: Vec<&RawCookie>) -> Self {
+    fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
         if 0 == cookies.len() {
             debug!("no cookies to add to request");
             self
         } else {
             // again, reqwest cookie version mismatches ours, so need to do some tricks
             let cookie_bytes = &cookies.iter()
-                .map(|rc| rc.pair().to_string().into_bytes())
+                .map(|rc| rc.encoded().to_string().into_bytes())
                 .collect::<Vec<_>>()[..];
             match CookieHeader::parse_header(cookie_bytes) {
                 Ok(cookie_header) => {

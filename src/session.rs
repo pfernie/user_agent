@@ -10,12 +10,12 @@ use utils::IntoUrl;
 
 /// Trait representing requests which can carry a Cookie header
 pub trait CarriesCookies {
-    fn add_cookies(self, Vec<&RawCookie>) -> Self;
+    fn add_cookies(self, Vec<&RawCookie<'static>>) -> Self;
 }
 
 /// Trait representing responses which may have a Set-Cookie header
 pub trait HasSetCookie {
-    fn parse_set_cookie(&self) -> Vec<RawCookie>;
+    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>>;
 }
 
 /// FIXME: document
@@ -93,8 +93,8 @@ macro_rules! define_req_with {
 }
 
 pub trait SessionCookieStore {
-    fn store_cookies(&mut self, &Url, Vec<RawCookie>);
-    fn get_cookies(&self, &Url) -> Vec<&RawCookie>;
+    fn store_cookies(&mut self, &Url, Vec<RawCookie<'static>>);
+    fn get_cookies(&self, &Url) -> Vec<&RawCookie<'static>>;
     /// FIXME: document
     fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
         req.add_cookies(self.get_cookies(url))
@@ -108,7 +108,7 @@ pub trait SessionCookieStore {
 
 impl SessionCookieStore for CookieStore {
     /// FIXME: document
-    fn store_cookies(&mut self, src_url: &Url, cookies: Vec<RawCookie>) {
+    fn store_cookies(&mut self, src_url: &Url, cookies: Vec<RawCookie<'static>>) {
         for cookie in cookies.into_iter() {
             debug!("inserting Set-Cookie '{:?}'", cookie);
             if let Err(e) = self.insert_raw(cookie, src_url) {
@@ -118,7 +118,7 @@ impl SessionCookieStore for CookieStore {
     }
 
     /// FIXME: document
-    fn get_cookies(&self, url: &Url) -> Vec<&RawCookie> {
+    fn get_cookies(&self, url: &Url) -> Vec<&RawCookie<'static>> {
         self.matches(&url).into_iter().map(|c| c.deref()).collect()
     }
 }
@@ -129,7 +129,7 @@ pub struct Session<C> {
 }
 
 impl<C> Session<C> {
-    pub fn new(client: C) -> Session<C> {
+    pub fn new(client: C) -> Self {
         Session {
             client: client,
             store: CookieStore::new(),
@@ -138,7 +138,7 @@ impl<C> Session<C> {
 
     pub fn load<R, E, F>(client: C, reader: R, cookie_from_str: F) -> StoreResult<Session<C>>
         where R: BufRead,
-              F: Fn(&str) -> Result<Cookie, E>,
+              F: Fn(&str) -> Result<Cookie<'static>, E>,
               Error: From<E>
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
@@ -240,7 +240,7 @@ mod tests {
     }
 
     impl<'b> CarriesCookies for TestClientRequest<'b> {
-        fn add_cookies(mut self, cookies: Vec<&RawCookie>) -> Self {
+        fn add_cookies(mut self, cookies: Vec<&RawCookie<'static>>) -> Self {
             for cookie in cookies.into_iter() {
                 self.cookies.push(cookie.clone());
             }
@@ -249,8 +249,8 @@ mod tests {
     }
 
     struct TestClientRequest<'b> {
-        cookies: Vec<RawCookie>,
-        outgoing: Vec<RawCookie>,
+        cookies: Vec<RawCookie<'static>>,
+        outgoing: Vec<RawCookie<'static>>,
         body: Option<Body<'b>>,
     }
 
@@ -259,7 +259,7 @@ mod tests {
             self.body = Some(body.into());
         }
 
-        fn set_outgoing(&mut self, cookies: Vec<RawCookie>) {
+        fn set_outgoing(&mut self, cookies: Vec<RawCookie<'static>>) {
             self.outgoing = cookies;
         }
 
@@ -276,9 +276,9 @@ mod tests {
         }
     }
 
-    struct TestClientResponse(String, Vec<RawCookie>);
+    struct TestClientResponse(String, Vec<RawCookie<'static>>);
     impl HasSetCookie for TestClientResponse {
-        fn parse_set_cookie(&self) -> Vec<RawCookie> {
+        fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
             self.1.clone()
         }
     }
@@ -352,15 +352,15 @@ mod tests {
     }
 
     macro_rules! is_in_vec {
-        ($i: ident, $e: expr) => (assert!($i.iter().any(|c| c.name == $e));)
+        ($i: ident, $e: expr) => (assert!($i.iter().any(|c| c.name() == $e));)
     }
 
     macro_rules! value_in_vec {
-        ($i: ident, $e: expr, $v: expr) => (assert!($i.iter().find(|c| c.name == $e).unwrap().value == $v);)
+        ($i: ident, $e: expr, $v: expr) => (assert!($i.iter().find(|c| c.name() == $e).unwrap().value() == $v);)
     }
 
     macro_rules! not_in_vec {
-        ($i: ident, $e: expr) => (assert!(!$i.iter().any(|c| c.name == $e));)
+        ($i: ident, $e: expr) => (assert!(!$i.iter().any(|c| c.name() == $e));)
     }
 
     macro_rules! has_sess {
@@ -376,11 +376,11 @@ mod tests {
     }
 
     macro_rules! has_value {
-        ($store: ident, $d: expr, $p: expr, $n: expr, $v: expr) => (assert_eq!($store.get($d, $p, $n).unwrap().value, $v);)
+        ($store: ident, $d: expr, $p: expr, $n: expr, $v: expr) => (assert_eq!($store.get($d, $p, $n).unwrap().value(), $v);)
     }
 
     macro_rules! not_has {
-        ($store: ident, $n: expr) => (assert_eq!($store.iter_any().filter(|c| c.name == $n).count(), 0);)
+        ($store: ident, $n: expr) => (assert_eq!($store.iter_any().filter(|c| c.name() == $n).count(), 0);)
     }
 
     macro_rules! load_session {

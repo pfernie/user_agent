@@ -94,10 +94,10 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
 /// __NOTE__: `cookie::Cookie` domain values already have the leading '.' stripped. To avoid
 /// performing this step twice, the `From<&cookie::Cookie>` impl should be used,
 /// instead of passing `cookie.domain` to the `From<&str>` impl.
-impl<'a> TryFrom<&'a RawCookie> for CookieDomain {
+impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
     type Err = Error;
-    fn try_from(cookie: &'a RawCookie) -> Result<CookieDomain, Self::Err> {
-        if let Some(ref domain) = cookie.domain {
+    fn try_from(cookie: &'a RawCookie<'c>) -> Result<CookieDomain, Self::Err> {
+        if let Some(ref domain) = cookie.domain() {
             idna::domain_to_ascii(domain.trim())
                 .map_err(|_| Error::Idna)
                 .map(|domain| if domain.is_empty() {

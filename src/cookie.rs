@@ -1,11 +1,11 @@
 use cookie_domain::CookieDomain;
-
 use cookie_expiration::CookieExpiration;
 use cookie_path::CookiePath;
 
-use raw_cookie::{Error as RawCookieError, Cookie as RawCookie};
-use std::{error, fmt};
+use raw_cookie::{ParseError, Cookie as RawCookie, CookieBuilder as RawCookieBuilder};
+use std::borrow::Cow;
 use std::ops::Deref;
+use std::{error, fmt};
 use time;
 use try_from::TryFrom;
 use url::Url;
@@ -58,20 +58,21 @@ impl fmt::Display for Error {
 }
 
 // cookie::Cookie::parse returns Result<Cookie, ()>
-impl From<RawCookieError> for Error {
-    fn from(_: RawCookieError) -> Error {
+impl From<ParseError> for Error {
+    fn from(_: ParseError) -> Error {
         Error::Parse
     }
 }
 
-pub type CookieResult = Result<Cookie, Error>;
+pub type CookieResult<'a> = Result<Cookie<'a>, Error>;
+
 /// A cookie conforming more closely to [IETF RFC6265](http://tools.ietf.org/html/rfc6265)
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct Cookie {
+pub struct Cookie<'a> {
     /// The parsed Set-Cookie data
     #[serde(serialize_with="serde_raw_cookie::serialize")]
     #[serde(deserialize_with="serde_raw_cookie::deserialize")]
-    raw_cookie: RawCookie,
+    raw_cookie: RawCookie<'a>,
     /// The Path attribute from a Set-Cookie header or the default-path as
     /// determined from
     /// the request-uri
@@ -90,20 +91,21 @@ pub struct Cookie {
 }
 
 mod serde_raw_cookie {
-    use serde::{Serialize, Serializer, Deserialize, Deserializer};
-    use serde::de::Unexpected;
-    use serde::de::Error;
     use raw_cookie::Cookie as RawCookie;
+    use serde::de::Error;
+    use serde::de::Unexpected;
+    use serde::{Serialize, Serializer, Deserialize, Deserializer};
+    use std::str::FromStr;
 
     pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         cookie.to_string().serialize(serializer)
     }
 
-    pub fn deserialize<'a, D>(deserializer: D) -> Result<RawCookie, D::Error>
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<RawCookie<'static>, D::Error>
     where D: Deserializer<'a> {
         let cookie = String::deserialize(deserializer)?;
-        match RawCookie::parse(&cookie) {
+        match RawCookie::from_str(&cookie) {
             Ok(cookie) => Ok(cookie),
             Err(_) => {
                 Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string"))
@@ -112,13 +114,13 @@ mod serde_raw_cookie {
     }
 }
 
-impl Cookie {
+impl<'a> Cookie<'a> {
     #[cfg_attr(not(test), allow(dead_code))]
     /// Whether this `Cookie` should be included for `request_url`
     pub fn matches(&self, request_url: &Url) -> bool {
         self.path.matches(&request_url) && self.domain.matches(&request_url) &&
-        (!self.raw_cookie.secure || is_secure(request_url)) &&
-        (!self.raw_cookie.httponly || is_http_scheme(request_url))
+        (!self.raw_cookie.secure() || is_secure(request_url)) &&
+        (!self.raw_cookie.http_only() || is_http_scheme(request_url))
     }
 
     /// Should this `Cookie` be persisted across sessions?
@@ -146,14 +148,16 @@ impl Cookie {
     }
 
     /// Parses a new `user_agent::Cookie` from `cookie_str`.
-    pub fn parse(cookie_str: &str, request_url: &Url) -> CookieResult {
+    pub fn parse<S>(cookie_str: S, request_url: &Url) -> CookieResult<'a>
+        where S: Into<Cow<'a, str>>
+    {
         Cookie::new(try!(RawCookie::parse(cookie_str)), request_url)
     }
 
     /// Create a new `user_agent::Cookie` from a `cookie::Cookie` (from the `cookie` crate)
     /// received from `request_url`.
-    pub fn new(mut raw_cookie: RawCookie, request_url: &Url) -> CookieResult {
-        if raw_cookie.httponly && !is_http_scheme(request_url) {
+    pub fn new(raw_cookie: RawCookie<'a>, request_url: &Url) -> CookieResult<'a> {
+        if raw_cookie.http_only() && !is_http_scheme(request_url) {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
             // cookie entirely.
@@ -186,61 +190,82 @@ impl Cookie {
             }
         });
 
-        let path = raw_cookie.path
+        let path = raw_cookie.path()
             .as_ref()
             .and_then(|p| CookiePath::parse(p))
             .unwrap_or_else(|| CookiePath::default_path(request_url));
 
         // per RFC6265, Max-Age takes precendence, then Expires, otherwise is Session
         // only
-        let expires = if let Some(max_age) = raw_cookie.max_age {
+        let expires = if let Some(max_age) = raw_cookie.max_age() {
             CookieExpiration::from(max_age)
-        } else if let Some(utc_tm) = raw_cookie.expires {
+        } else if let Some(utc_tm) = raw_cookie.expires() {
             CookieExpiration::from(utc_tm)
         } else {
             CookieExpiration::SessionEnd
         };
 
         // These are all tracked via Cookie, clear from RawCookie
-        raw_cookie.max_age = None;
-        raw_cookie.expires = None;
-        raw_cookie.domain = None;
-        raw_cookie.path = None;
+        let mut builder = RawCookieBuilder::new(
+            raw_cookie.name().to_owned(),
+            raw_cookie.value().to_owned());
+        builder = builder.secure(raw_cookie.secure());
+        builder = builder.http_only(raw_cookie.http_only());
+        if let Some(same_site) = raw_cookie.same_site() {
+            builder = builder.same_site(same_site);
+        }
 
         Ok(Cookie {
-            raw_cookie: raw_cookie,
+            raw_cookie: builder.finish(),
             path: path,
             expires: expires,
             domain: domain,
         })
     }
+
+    pub fn into_owned(self) -> Cookie<'static> {
+        Cookie {
+            raw_cookie: self.raw_cookie.into_owned(),
+            path: self.path,
+            domain: self.domain,
+            expires: self.expires,
+        }
+    }
 }
 
-impl Deref for Cookie {
-    type Target = RawCookie;
+impl<'a> Deref for Cookie<'a> {
+    type Target = RawCookie<'a>;
     fn deref(&self) -> &Self::Target {
         &self.raw_cookie
     }
 }
 
-impl From<Cookie> for RawCookie {
-    fn from(mut cookie: Cookie) -> RawCookie {
-        // Max-Age is relative, will not have same meaning now
-        cookie.raw_cookie.max_age = None;
-        cookie.raw_cookie.expires = match cookie.expires {
-            CookieExpiration::AtUtc(utc_tm) => Some(*utc_tm),
-            CookieExpiration::SessionEnd => None,
-        };
-        cookie.raw_cookie.path = if cookie.path.is_from_path_attr() {
-            Some(String::from(cookie.path))
-        } else {
-            None
-        };
-        cookie.raw_cookie.domain = match cookie.domain {
-            CookieDomain::Suffix(ref s) => Some(s.clone()),
-            _ => None,
-        };
-        cookie.raw_cookie
+impl<'a> From<Cookie<'a>> for RawCookie<'a> {
+    fn from(cookie: Cookie<'a>) -> RawCookie<'static> {
+        let mut builder = RawCookieBuilder::new(
+            cookie.name().to_owned(),
+            cookie.value().to_owned());
+
+        // Max-Age is relative, will not have same meaning now, so only set `Expires`.
+        match cookie.expires {
+            CookieExpiration::AtUtc(utc_tm) => {
+                builder = builder.expires(*utc_tm);
+            }
+            CookieExpiration::SessionEnd => {}
+        }
+
+        if cookie.path.is_from_path_attr() {
+            builder = builder.path(String::from(cookie.path));
+        }
+
+        match cookie.domain {
+            CookieDomain::Suffix(s) => {
+                builder = builder.domain(s);
+            }
+            _ => {}
+        }
+
+        builder.finish()
     }
 }
 
@@ -291,7 +316,7 @@ mod tests {
     fn domains() {
         fn domain_from(domain: &str, request_url: &str, is_some: bool) {
             let cookie_str = format!("cookie1=value1; Domain={}", domain);
-            let raw_cookie = RawCookie::parse(&cookie_str).unwrap();
+            let raw_cookie = RawCookie::parse(cookie_str).unwrap();
             let cookie = Cookie::new(raw_cookie, &test_utils::url(request_url));
             assert_eq!(is_some, cookie.is_ok())
         }
