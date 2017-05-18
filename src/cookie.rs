@@ -69,6 +69,8 @@ pub type CookieResult = Result<Cookie, Error>;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Cookie {
     /// The parsed Set-Cookie data
+    #[serde(serialize_with="serde_raw_cookie::serialize")]
+    #[serde(deserialize_with="serde_raw_cookie::deserialize")]
     raw_cookie: RawCookie,
     /// The Path attribute from a Set-Cookie header or the default-path as
     /// determined from
@@ -85,6 +87,29 @@ pub struct Cookie {
     /// indicating a non-persistent `Cookie` that should expire at the end of the
     /// session
     pub expires: CookieExpiration,
+}
+
+mod serde_raw_cookie {
+    use serde::{Serialize, Serializer, Deserialize, Deserializer};
+    use serde::de::Unexpected;
+    use serde::de::Error;
+    use raw_cookie::{Error as RawCookieError, Cookie as RawCookie};
+
+    pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        cookie.to_string().serialize(serializer)
+    }
+
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<RawCookie, D::Error>
+    where D: Deserializer<'a> {
+        let cookie = String::deserialize(deserializer)?;
+        match RawCookie::parse(&cookie) {
+            Ok(cookie) => Ok(cookie),
+            Err(err) => {
+                Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string"))
+            }
+        }
+    }
 }
 
 impl Cookie {

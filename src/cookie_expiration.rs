@@ -133,44 +133,35 @@ mod tests {
 }
 
 mod serde {
-    use serde;
     use serde::de::{Deserializer, Visitor};
+    use serde;
+    use std::fmt;
     use super::SerializableTm;
     use time;
 
     impl serde::Serialize for SerializableTm {
-        fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where S: serde::Serializer
         {
             serializer.serialize_str(&format!("{}", self.0.rfc3339()))
         }
     }
 
-    impl serde::Deserialize for SerializableTm {
-        fn deserialize<D>(deserializer: &mut D) -> Result<SerializableTm, D::Error>
-            where D: Deserializer
+    impl<'a> serde::Deserialize<'a> for SerializableTm {
+        fn deserialize<D>(deserializer: D) -> Result<SerializableTm, D::Error>
+            where D: Deserializer<'a>
         {
-            deserializer.deserialize(TmVisitor)
+            let tm = deserializer.deserialize_str(TmVisitor)?;
+            Ok(SerializableTm::from(tm))
         }
     }
 
     struct TmVisitor;
 
-    impl Visitor for TmVisitor {
+    impl<'a> Visitor<'a> for TmVisitor {
         type Value = SerializableTm;
 
-        fn visit_string<E>(&mut self, str_data: String) -> Result<SerializableTm, E>
-            where E: serde::de::Error
-        {
-            time::strptime(&str_data[..], "%Y-%m-%dT%H:%M:%SZ")
-                .map(SerializableTm::from)
-                .map_err(|_| {
-                    E::custom(format!("could not parse '{}' as a UTC time in RFC3339 format",
-                                      str_data))
-                })
-        }
-
-        fn visit_str<E>(&mut self, str_data: &str) -> Result<SerializableTm, E>
+        fn visit_str<E>(self, str_data: &str) -> Result<SerializableTm, E>
             where E: serde::de::Error
         {
             time::strptime(str_data, "%Y-%m-%dT%H:%M:%SZ")
@@ -179,6 +170,10 @@ mod serde {
                     E::custom(format!("could not parse '{}' as a UTC time in RFC3339 format",
                                       str_data))
                 })
+        }
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("datetime")
         }
     }
 
