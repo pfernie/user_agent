@@ -26,6 +26,7 @@ pub use cookie_store::CookieStore;
 mod session;
 pub use session::{Session, WithSession};
 mod reqwest_session;
+pub use reqwest_session::ReqwestSession;
 mod utils;
 use serde_json::error::Error as JsonError;
 
