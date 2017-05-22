@@ -412,7 +412,7 @@ mod tests {
     fn client() {
         let session1 = {
             // init & try http://www.example.com
-            let mut s = Session::new(TestClient);
+            let mut s = TestSession::new(TestClient);
             let url = Url::parse("http://www.example.com").unwrap();
 
             s.parse("0=_", &url).unwrap();
