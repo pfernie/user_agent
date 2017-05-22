@@ -290,12 +290,10 @@ mod tests {
     #[test]
     fn domains() {
         fn domain_from(domain: &str, request_url: &str, is_some: bool) {
-            assert_eq!(is_some,
-                       Cookie::new(RawCookie::parse(&format!("cookie1=value1; Domain={}",
-                                                             domain))
-                                       .unwrap(),
-                                   &test_utils::url(request_url))
-                           .is_ok());
+            let cookie_str = format!("cookie1=value1; Domain={}", domain);
+            let raw_cookie = RawCookie::parse(&cookie_str).unwrap();
+            let cookie = Cookie::new(raw_cookie, &test_utils::url(request_url));
+            assert_eq!(is_some, cookie.is_ok())
         }
         //        The user agent will reject cookies unless the Domain attribute
         // specifies a scope for the cookie that would include the origin
@@ -636,51 +634,74 @@ mod serde {
         use utils::test as test_utils;
         use utils::test::*;
 
-        fn encode_decode(c: &Cookie, exp_json: &str) {
-            let encoded = serde_json::to_string(c).unwrap();
-            assert!(exp_json == encoded,
-                    "\nexpected: '{}'\n encoded: '{}'",
-                    exp_json,
-                    encoded);
-            let decoded: Cookie = serde_json::from_str(&encoded).unwrap();
-            assert!(*c == decoded,
-                    "\nexpected: '{:?}'\n decoded: '{:?}'\n encoded: '{}'\nexp_json: '{}'",
-                    c,
-                    decoded,
-                    encoded,
-                    exp_json);
+        fn encode_decode(c: &Cookie, expected: serde_json::Value) {
+            let encoded = serde_json::to_value(c).unwrap();
+            assert_eq!(expected, encoded,
+                       "\nexpected: '{}'\n encoded: '{}'",
+                       expected.to_string(),
+                       encoded.to_string());
+            let decoded: Cookie = serde_json::from_value(encoded).unwrap();
+            assert_eq!(*c, decoded,
+                       "\nexpected: '{}'\n decoded: '{}'",
+                       c.to_string(),
+                       decoded.to_string());
         }
 
         #[test]
         fn serde() {
-            encode_decode(&test_utils::make_cookie("cookie1=value1",
-                                                   "http://example.com/foo/bar",
-                                                   None,
-                                                   None),
-                          "{\"raw_cookie\":\"cookie1=value1\",\"path\":[\"/foo\",false],\
-                           \"domain\":{\"HostOnly\":\"example.com\"},\"expires\":\"SessionEnd\"}");
-            encode_decode(&test_utils::make_cookie("cookie2=value2; Domain=example.com",
-                                                   "http://foo.example.com/foo/bar",
-                                                   None,
-                                                   None),
-                          "{\"raw_cookie\":\"cookie2=value2\",\"path\":[\"/foo\",false],\
-                           \"domain\":{\"Suffix\":\"example.com\"},\"expires\":\"SessionEnd\"}");
-            encode_decode(&test_utils::make_cookie("cookie3=value3; Path=/foo/bar",
-                                                   "http://foo.example.com/foo",
-                                                   None,
-                                                   None),
-                          "{\"raw_cookie\":\"cookie3=value3\",\"path\":[\"/foo/bar\",true],\
-                           \"domain\":{\"HostOnly\":\"foo.example.com\"},\"expires\":\
-                           \"SessionEnd\"}");
+            encode_decode(
+                &test_utils::make_cookie("cookie1=value1",
+                                         "http://example.com/foo/bar",
+                                         None,
+                                         None),
+                json!({
+                    "raw_cookie": "cookie1=value1",
+                    "path": ["/foo", false],
+                    "domain": { "HostOnly": "example.com" },
+                    "expires": "SessionEnd"
+                })
+            );
+
+            encode_decode(
+                &test_utils::make_cookie("cookie2=value2; Domain=example.com",
+                                         "http://foo.example.com/foo/bar",
+                                         None,
+                                         None),
+                json!({
+                    "raw_cookie": "cookie2=value2",
+                    "path": ["/foo", false],
+                    "domain": { "Suffix": "example.com" },
+                    "expires": "SessionEnd"
+                })
+            );
+
+            encode_decode(
+                &test_utils::make_cookie("cookie3=value3; Path=/foo/bar",
+                                         "http://foo.example.com/foo",
+                                         None,
+                                         None),
+                json!({
+                    "raw_cookie": "cookie3=value3",
+                    "path": ["/foo/bar", true],
+                    "domain": { "HostOnly": "foo.example.com" },
+                    "expires": "SessionEnd",
+                })
+            );
+
             let at_utc = time::strptime("2015-08-11T16:41:42Z", "%Y-%m-%dT%H:%M:%SZ").unwrap();
-            encode_decode(&test_utils::make_cookie("cookie4=value4",
-                                                   "http://example.com/foo/bar",
-                                                   Some(at_utc),
-                                                   None),
-                          &format!("{{\"raw_cookie\":\"cookie4=value4\",\"path\":[\"/foo\",\
-                                    false],\"domain\":{{\"HostOnly\":\"example.com\"}},\
-                                    \"expires\":{{\"AtUtc\":\"{}\"}}}}",
-                                   at_utc.rfc3339()));
+            encode_decode(
+                &test_utils::make_cookie("cookie4=value4",
+                                         "http://example.com/foo/bar",
+                                         Some(at_utc),
+                                         None),
+                json!({
+                    "raw_cookie": "cookie4=value4",
+                    "path": ["/foo", false],
+                    "domain": { "HostOnly": "example.com" },
+                    "expires": { "AtUtc": at_utc.rfc3339().to_string() },
+                })
+            );
+
             let expires = test_utils::make_cookie("cookie5=value5",
                                                   "http://example.com/foo/bar",
                                                   Some(in_minutes(10)),
@@ -689,11 +710,16 @@ mod serde {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(&expires,
-                          &format!("{{\"raw_cookie\":\"cookie5=value5\",\"path\":[\"/foo\",\
-                                    false],\"domain\":{{\"HostOnly\":\"example.com\"}},\
-                                    \"expires\":{{\"AtUtc\":\"{}\"}}}}",
-                                   utc_tm.rfc3339()));
+
+            encode_decode(
+                &expires,
+                json!({
+                    "raw_cookie": "cookie5=value5",
+                    "path":["/foo", false],
+                    "domain": { "HostOnly": "example.com" },
+                    "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
+                })
+            );
             let max_age = test_utils::make_cookie("cookie6=value6",
                                                   "http://example.com/foo/bar",
                                                   Some(at_utc),
@@ -702,11 +728,16 @@ mod serde {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(&max_age,
-                          &format!("{{\"raw_cookie\":\"cookie6=value6\",\"path\":[\"/foo\",\
-                                    false],\"domain\":{{\"HostOnly\":\"example.com\"}},\
-                                    \"expires\":{{\"AtUtc\":\"{}\"}}}}",
-                                   utc_tm.rfc3339()));
+            encode_decode(
+                &max_age,
+                json!({
+                    "raw_cookie": "cookie6=value6",
+                    "path":["/foo", false],
+                    "domain": { "HostOnly": "example.com" },
+                    "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
+                })
+            );
+
             let max_age = test_utils::make_cookie("cookie7=value7",
                                                   "http://example.com/foo/bar",
                                                   None,
@@ -715,11 +746,15 @@ mod serde {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(&max_age,
-                          &format!("{{\"raw_cookie\":\"cookie7=value7\",\"path\":[\"/foo\",\
-                                    false],\"domain\":{{\"HostOnly\":\"example.com\"}},\
-                                    \"expires\":{{\"AtUtc\":\"{}\"}}}}",
-                                   utc_tm.rfc3339()));
+            encode_decode(
+                &max_age,
+                json!({
+                    "raw_cookie": "cookie7=value7",
+                    "path":["/foo", false],
+                    "domain": { "HostOnly": "example.com" },
+                    "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
+                })
+            );
         }
     }
 }
