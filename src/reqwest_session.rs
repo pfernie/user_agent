@@ -55,6 +55,7 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
+
 impl<'b> WithSession<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
@@ -62,9 +63,20 @@ impl<'b> WithSession<'b> for ReqwestSession {
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
-    define_req_with!(delete_with, |url, &client| unimplemented!());
+
+    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+        where U: IntoUrl,
+              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+    {
+        unimplemented!()
+    }
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    define_req_with!(put_with, |url, &client| unimplemented!());
+    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+        where U: IntoUrl,
+              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+    {
+        unimplemented!()
+    }
 }
 
 impl ::std::ops::Deref for ReqwestSession {

@@ -93,7 +93,7 @@ mod serde_raw_cookie {
     use serde::{Serialize, Serializer, Deserialize, Deserializer};
     use serde::de::Unexpected;
     use serde::de::Error;
-    use raw_cookie::{Error as RawCookieError, Cookie as RawCookie};
+    use raw_cookie::Cookie as RawCookie;
 
     pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
@@ -105,7 +105,7 @@ mod serde_raw_cookie {
         let cookie = String::deserialize(deserializer)?;
         match RawCookie::parse(&cookie) {
             Ok(cookie) => Ok(cookie),
-            Err(err) => {
+            Err(_) => {
                 Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string"))
             }
         }

@@ -301,6 +301,7 @@ mod tests {
     }
 
     type TestSession = Session<TestClient>;
+
     impl<'b> WithSession<'b> for TestSession {
         type Request = TestClientRequest<'b>;
         type Response = TestClientResponse;
