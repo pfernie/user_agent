@@ -22,18 +22,13 @@ pub enum StoreAction {
 
 pub type StoreResult<T> = Result<T, Error>;
 pub type InsertResult = Result<StoreAction, CookieError>;
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Default)]
 pub struct CookieStore {
     /// Cookies stored by domain, path, then name
     cookies: HashMap<String, HashMap<String, HashMap<String, Cookie<'static>>>>,
 }
 
 impl CookieStore {
-    /// Creates an empty `CookieStore`
-    pub fn new() -> CookieStore {
-        CookieStore { cookies: HashMap::new() }
-    }
-
     /// Returns true if the `CookieStore` contains an __unexpired__ `Cookie` corresponding to the
     /// specified `domain`, `path`, and `name`.
     pub fn contains(&self, domain: &str, path: &str, name: &str) -> bool {
@@ -196,9 +191,9 @@ impl CookieStore {
         // an expired one, so we need to do the old_cookie check below before checking
         // is_expired() on an incoming cookie
 
-        if let Some(old_cookie) = self.get_mut(&cookie.domain.into_cow(),
+        if let Some(old_cookie) = self.get_mut(&cookie.domain.as_cow(),
                                                &cookie.path,
-                                               &cookie.name()) {
+                                               cookie.name()) {
             if old_cookie.http_only() && !is_http_scheme(request_url) {
                 // 2.  If the newly created cookie was received from a "non-HTTP"
                 //    API and the old-cookie's http-only-flag is set, abort these
@@ -371,7 +366,7 @@ mod tests {
     }
 
     fn make_match_store() -> CookieStore {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         inserted!(add_cookie(&mut store,
                              "cookie1=1",
                              "http://example.com/foo/bar",
@@ -438,7 +433,7 @@ mod tests {
 
     #[test]
     fn insert_raw() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         inserted!(store.insert_raw(RawCookie::parse("cookie1=value1").unwrap(),
                                    &test_utils::url("http://example.com/foo/bar")));
         non_rel_scheme!(store.insert_raw(RawCookie::parse("cookie1=value1").unwrap(),
@@ -451,8 +446,9 @@ mod tests {
                                       &test_utils::url("http://example.com/foo/bar")));
         updated!(store.insert_raw(RawCookie::parse("cookie1=value1").unwrap(),
                                   &test_utils::url("http://example.com/foo/bar")));
-        expired_existing!(store.insert_raw(RawCookie::parse("cookie1=value1; Max-Age=-1").unwrap(),
-                        &test_utils::url("http://example.com/foo/bar")));
+        expired_existing!(store.insert_raw(RawCookie::parse("cookie1=value1; Max-Age=-1")
+                                               .unwrap(),
+                                           &test_utils::url("http://example.com/foo/bar")));
         domain_mismatch!(store.insert_raw(RawCookie::parse("cookie1=value1; Domain=bar.example.com")
                                               .unwrap(),
                                           &test_utils::url("http://example.com/foo/bar")));
@@ -460,7 +456,7 @@ mod tests {
 
     #[test]
     fn parse() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         inserted!(store.parse("cookie1=value1",
                               &test_utils::url("http://example.com/foo/bar")));
         non_rel_scheme!(store.parse("cookie1=value1", &test_utils::url("data:nonrelativescheme")));
@@ -481,7 +477,7 @@ mod tests {
     #[test]
     fn save() {
         let mut output = vec![];
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         store.save_json(&mut output).unwrap();
         assert_eq!("", from_utf8(&output[..]).unwrap());
         // non-persistent cookie, should not be saved
@@ -561,7 +557,7 @@ mod tests {
 
     #[test]
     fn domains() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         //        The user agent will reject cookies unless the Domain attribute
         // specifies a scope for the cookie that would include the origin
         // server.  For example, the user agent will accept a cookie with a
@@ -580,10 +576,12 @@ mod tests {
                                    &request_url));
             updated!(store.insert(domain_cookie_from(".example.com", "http://foo.example.com"),
                                   &request_url));
-            inserted!(store.insert(domain_cookie_from("foo.example.com", "http://foo.example.com"),
-                        &request_url));
-            updated!(store.insert(domain_cookie_from(".foo.example.com", "http://foo.example.com"),
-                        &request_url));
+            inserted!(store.insert(domain_cookie_from("foo.example.com",
+                                                      "http://foo.example.com"),
+                                   &request_url));
+            updated!(store.insert(domain_cookie_from(".foo.example.com",
+                                                     "http://foo.example.com"),
+                                  &request_url));
             // not for bar.example.com
             domain_mismatch!(store.insert(domain_cookie_from("bar.example.com",
                                                              "http://bar.example.com"),
@@ -607,10 +605,12 @@ mod tests {
                                   &request_url));
             updated!(store.insert(domain_cookie_from(".example.com", "http://foo.example.com"),
                                   &request_url));
-            inserted!(store.insert(domain_cookie_from("bar.example.com", "http://bar.example.com"),
-                        &request_url));
-            updated!(store.insert(domain_cookie_from(".bar.example.com", "http://bar.example.com"),
-                        &request_url));
+            inserted!(store.insert(domain_cookie_from("bar.example.com",
+                                                      "http://bar.example.com"),
+                                   &request_url));
+            updated!(store.insert(domain_cookie_from(".bar.example.com",
+                                                     "http://bar.example.com"),
+                                  &request_url));
             // bar.example.com cannot submit for foo.example.com
             domain_mismatch!(store.insert(domain_cookie_from("foo.example.com",
                                                              "http://foo.example.com"),
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn http_only() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         let c = Cookie::parse("cookie1=value1; HttpOnly",
                               &test_utils::url("http://example.com/foo/bar"))
                 .unwrap();
@@ -654,7 +654,7 @@ mod tests {
 
     #[test]
     fn load() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         // non-persistent cookie, should not be saved
         inserted!(add_cookie(&mut store,
                              "cookie0=value0",
@@ -716,14 +716,35 @@ mod tests {
         has_str!("cookie8=value8; HttpOnly", output);
         let store = CookieStore::load_json(&output[..]).unwrap();
         assert!(store.get("example.com", "/foo", "cookie0").is_none());
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value1");
-        assert!(store.get("example.com", "/foo", "cookie2").unwrap().value() == "value2");
-        assert!(store.get("example.com", "/foo", "cookie3").unwrap().value() == "value3");
-        assert!(store.get("foo.example.com", "/foo/", "cookie4").unwrap().value() == "value4");
-        assert!(store.get("127.0.0.1", "/foo", "cookie5").unwrap().value() == "value5");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value1");
+        assert!(store
+                    .get("example.com", "/foo", "cookie2")
+                    .unwrap()
+                    .value() == "value2");
+        assert!(store
+                    .get("example.com", "/foo", "cookie3")
+                    .unwrap()
+                    .value() == "value3");
+        assert!(store
+                    .get("foo.example.com", "/foo/", "cookie4")
+                    .unwrap()
+                    .value() == "value4");
+        assert!(store
+                    .get("127.0.0.1", "/foo", "cookie5")
+                    .unwrap()
+                    .value() == "value5");
         assert!(store.get("[::1]", "/foo", "cookie6").unwrap().value() == "value6");
-        assert!(store.get("example.com", "/foo", "cookie7").unwrap().value() == "value7");
-        assert!(store.get("example.com", "/foo", "cookie8").unwrap().value() == "value8");
+        assert!(store
+                    .get("example.com", "/foo", "cookie7")
+                    .unwrap()
+                    .value() == "value7");
+        assert!(store
+                    .get("example.com", "/foo", "cookie8")
+                    .unwrap()
+                    .value() == "value8");
 
         output.clear();
         let store = make_match_store();
@@ -735,7 +756,7 @@ mod tests {
     #[test]
     fn clear() {
         let mut output = vec![];
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         inserted!(add_cookie(&mut store,
                              "cookie1=value1",
                              "http://example.com/foo/bar",
@@ -751,7 +772,7 @@ mod tests {
 
     #[test]
     fn add_and_get() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         assert!(store.get("example.com", "/foo", "cookie1").is_none());
 
         inserted!(add_cookie(&mut store,
@@ -762,40 +783,70 @@ mod tests {
         assert!(store.get("example.com", "/foo/bar", "cookie1").is_none());
         assert!(store.get("example.com", "/foo", "cookie2").is_none());
         assert!(store.get("example.org", "/foo", "cookie1").is_none());
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value1");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value1");
 
         updated!(add_cookie(&mut store,
                             "cookie1=value2",
                             "http://example.com/foo/bar",
                             None,
                             None));
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value2");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value2");
 
         inserted!(add_cookie(&mut store,
                              "cookie2=value3",
                              "http://example.com/foo/bar",
                              None,
                              None));
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value2");
-        assert!(store.get("example.com", "/foo", "cookie2").unwrap().value() == "value3");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value2");
+        assert!(store
+                    .get("example.com", "/foo", "cookie2")
+                    .unwrap()
+                    .value() == "value3");
 
         inserted!(add_cookie(&mut store,
                              "cookie3=value4; HttpOnly",
                              "http://example.com/foo/bar",
                              None,
                              None));
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value2");
-        assert!(store.get("example.com", "/foo", "cookie2").unwrap().value() == "value3");
-        assert!(store.get("example.com", "/foo", "cookie3").unwrap().value() == "value4");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value2");
+        assert!(store
+                    .get("example.com", "/foo", "cookie2")
+                    .unwrap()
+                    .value() == "value3");
+        assert!(store
+                    .get("example.com", "/foo", "cookie3")
+                    .unwrap()
+                    .value() == "value4");
 
         non_http_scheme!(add_cookie(&mut store,
                                     "cookie3=value5",
                                     "ftp://example.com/foo/bar",
                                     None,
                                     None));
-        assert!(store.get("example.com", "/foo", "cookie1").unwrap().value() == "value2");
-        assert!(store.get("example.com", "/foo", "cookie2").unwrap().value() == "value3");
-        assert!(store.get("example.com", "/foo", "cookie3").unwrap().value() == "value4");
+        assert!(store
+                    .get("example.com", "/foo", "cookie1")
+                    .unwrap()
+                    .value() == "value2");
+        assert!(store
+                    .get("example.com", "/foo", "cookie2")
+                    .unwrap()
+                    .value() == "value3");
+        assert!(store
+                    .get("example.com", "/foo", "cookie3")
+                    .unwrap()
+                    .value() == "value4");
     }
 
     #[test]
@@ -843,7 +894,7 @@ mod tests {
         values_are!(store, "http://example.com/sec/foo", vec!["3"]);
         values_are!(store, "ftp://example.com/sec/foo", vec![]);
         values_are!(store, "http://bar.example.com/foo/bar/bus", vec!["7"]);
-        values_are!(store, "http://example.com/foo/bar/bus", vec!["1", ]);
+        values_are!(store, "http://example.com/foo/bar/bus", vec!["1"]);
         match store.get_any("example.com", "/foo", "cookie5") {
             Some(cookie) => assert!(cookie.is_expired()),
             None => unreachable!(),
@@ -861,7 +912,7 @@ mod tests {
         values_are!(store, "http://example.com/sec/foo", vec!["3"]);
         values_are!(store, "ftp://example.com/sec/foo", vec![]);
         values_are!(store, "http://bar.example.com/foo/bar/bus", vec!["7"]);
-        values_are!(store, "http://example.com/foo/bar/bus", vec!["1", ]);
+        values_are!(store, "http://example.com/foo/bar/bus", vec!["1"]);
         assert!(store.get_any("example.com", "/", "cookie6").is_none());
         assert!(store.get_any("example.com", "/foo", "cookie5").is_none());
     }
@@ -883,7 +934,9 @@ mod tests {
         store = CookieStore::load_json(&output[..]).unwrap();
         check_matches!(&store);
         assert!(store.get("example.com", "/tmp", "cookie10").is_none());
-        assert!(store.get_any("example.com", "/tmp", "cookie10").is_none());
+        assert!(store
+                    .get_any("example.com", "/tmp", "cookie10")
+                    .is_none());
     }
 
     macro_rules! dump {
@@ -923,7 +976,7 @@ mod tests {
 
     #[test]
     fn domain_collisions() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         // - HostOnly, so no collisions here
         inserted!(add_cookie(&mut store,
                              "cookie1=1a",
@@ -950,17 +1003,17 @@ mod tests {
         dump!("domain_collisions", store);
         matches_are(&store,
                     "http://foo.bus.example.com/",
-                    vec![ "cookie1=1a", "cookie2=2a", "cookie2=2b", ]);
+                    vec!["cookie1=1a", "cookie2=2a", "cookie2=2b"]);
         matches_are(&store,
                     "http://bus.example.com/",
-                    vec![ "cookie1=1b", "cookie2=2a", "cookie2=2b", ]);
-        matches_are(&store, "http://example.com/", vec![ "cookie2=2b", ]);
-        matches_are(&store, "http://foo.example.com/", vec![ "cookie2=2b", ]);
+                    vec!["cookie1=1b", "cookie2=2a", "cookie2=2b"]);
+        matches_are(&store, "http://example.com/", vec!["cookie2=2b"]);
+        matches_are(&store, "http://foo.example.com/", vec!["cookie2=2b"]);
     }
 
     #[test]
     fn path_collisions() {
-        let mut store = CookieStore::new();
+        let mut store = CookieStore::default();
         // will be default-path: /foo/bar, and /foo, resp.
         // both should match /foo/bar/
         inserted!(add_cookie(&mut store,
@@ -987,19 +1040,19 @@ mod tests {
         dump!("path_collisions", store);
         matches_are(&store,
                     "http://bus.example.com/foo/bar/",
-                    vec![ "cookie3=3a", "cookie3=3b", "cookie4=4a", "cookie4=4b", ]);
+                    vec!["cookie3=3a", "cookie3=3b", "cookie4=4a", "cookie4=4b"]);
         // Agrees w/ chrome, but not FF... FF also sends cookie4=4a, but this should be
         // a path-match
         // fail since request-uri /foo/bar is a *prefix* of the cookie path /foo/bar/
         matches_are(&store,
                     "http://bus.example.com/foo/bar",
-                    vec![ "cookie3=3a", "cookie3=3b", "cookie4=4b", ]);
+                    vec!["cookie3=3a", "cookie3=3b", "cookie4=4b"]);
         matches_are(&store,
                     "http://bus.example.com/foo/ba",
-                    vec![ "cookie3=3b", "cookie4=4b", ]);
+                    vec!["cookie3=3b", "cookie4=4b"]);
         matches_are(&store,
                     "http://bus.example.com/foo/",
-                    vec![ "cookie3=3b", "cookie4=4b", ]);
+                    vec!["cookie3=3b", "cookie4=4b"]);
         // Agrees w/ chrome, but not FF... FF also sends cookie4=4b, but this should be
         // a path-match
         // fail since request-uri /foo is a *prefix* of the cookie path /foo/

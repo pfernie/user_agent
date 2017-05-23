@@ -27,41 +27,41 @@ pub trait WithSession<'b> {
     fn get_with<U, P>(&'b mut self,
                       url: U,
                       prepare_and_send: P)
-                      -> Result<Self::Response, Self::SendError>
+                      -> ::std::result::Result<Self::Response, Self::SendError>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>;
+              P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
     fn head_with<U, P>(&'b mut self,
                        url: U,
                        prepare_and_send: P)
-                       -> Result<Self::Response, Self::SendError>
+                       -> ::std::result::Result<Self::Response, Self::SendError>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>;
+              P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
     fn delete_with<U, P>(&'b mut self,
                          url: U,
                          prepare_and_send: P)
-                         -> Result<Self::Response, Self::SendError>
+                         -> ::std::result::Result<Self::Response, Self::SendError>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>;
+              P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
     fn post_with<U, P>(&'b mut self,
                        url: U,
                        prepare_and_send: P)
-                       -> Result<Self::Response, Self::SendError>
+                       -> ::std::result::Result<Self::Response, Self::SendError>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>;
+              P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
     fn put_with<U, P>(&'b mut self,
                       url: U,
                       prepare_and_send: P)
-                      -> Result<Self::Response, Self::SendError>
+                      -> ::std::result::Result<Self::Response, Self::SendError>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>;
+              P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
 }
 
 #[macro_export]
 macro_rules! define_req_with {
     ($with_fn: ident, |$u: ident, &$client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response>
+        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> ::std::result::Result<Self::Response, Self::SendError>
             where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> Result<Self::Response>
+                  P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
                   {
                       let $u: Url = try!($u.into_url());
                       let res = {
@@ -75,9 +75,9 @@ macro_rules! define_req_with {
                   }
     };
     ($with_fn: ident, |$u: ident, &mut $client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response>
+        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> ::std::result::Result<Self::Response, Self::SendError>
             where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> Result<Self::Response>
+                  P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
                   {
                       let $u: Url = try!($u.into_url());
                       let res = {
@@ -109,7 +109,7 @@ pub trait SessionCookieStore {
 impl SessionCookieStore for CookieStore {
     /// FIXME: document
     fn store_cookies(&mut self, src_url: &Url, cookies: Vec<RawCookie<'static>>) {
-        for cookie in cookies.into_iter() {
+        for cookie in cookies {
             debug!("inserting Set-Cookie '{:?}'", cookie);
             if let Err(e) = self.insert_raw(cookie, src_url) {
                 debug!("unable to store Set-Cookie: {:?}", e);
@@ -119,7 +119,7 @@ impl SessionCookieStore for CookieStore {
 
     /// FIXME: document
     fn get_cookies(&self, url: &Url) -> Vec<&RawCookie<'static>> {
-        self.matches(&url)
+        self.matches(url)
             .into_iter()
             .map(|c| c.deref())
             .collect()
@@ -135,13 +135,13 @@ impl<C> Session<C> {
     pub fn new(client: C) -> Self {
         Session {
             client: client,
-            store: CookieStore::new(),
+            store: CookieStore::default(),
         }
     }
 
     pub fn load<R, E, F>(client: C, reader: R, cookie_from_str: F) -> StoreResult<Session<C>>
         where R: BufRead,
-              F: Fn(&str) -> Result<Cookie<'static>, E>,
+              F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
               Error: From<E>
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
@@ -161,7 +161,7 @@ impl<C> Session<C> {
 
     pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> StoreResult<()>
         where W: Write,
-              F: Fn(&Cookie) -> Result<String, E>,
+              F: Fn(&Cookie) -> ::std::result::Result<String, E>,
               Error: From<E>
     {
         self.store.save(writer, cookie_to_string)

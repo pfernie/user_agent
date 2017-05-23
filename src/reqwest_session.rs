@@ -31,7 +31,7 @@ impl HasSetCookie for reqwest::Response {
 
 impl CarriesCookies for reqwest::RequestBuilder {
     fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
-        if 0 == cookies.len() {
+        if cookies.is_empty() {
             debug!("no cookies to add to request");
             self
         } else {
@@ -128,21 +128,25 @@ mod tests {
         env_logger::init().unwrap();
         let mut s = ReqwestSession::new(reqwest::Client::new().expect("unable to create Client"));
         dump!("init", s);
-        s.get_with("http://www.google.com", |req| req.send())
+        s.get_with("http://www.google.com",
+                      |req| req.send().map_err(super::Error::from))
             .expect("www.google.com get_with failed");
         let c1 = s.iter_unexpired().count();
         assert!(c1 > 0);
-        s.get_with("http://www.google.com", |req| req.send())
+        s.get_with("http://www.google.com",
+                      |req| req.send().map_err(super::Error::from))
             .expect("www.google.com get_with failed");
         assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
-        s.get_with("http://www.yahoo.com", |req| req.send())
+        s.get_with("http://www.yahoo.com",
+                      |req| req.send().map_err(super::Error::from))
             .expect("www.yahoo.com get_with failed");
         dump!("after yahoo", s);
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com", |req| req.send())
+        s.get_with("http://www.msn.com",
+                      |req| req.send().map_err(super::Error::from))
             .expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
