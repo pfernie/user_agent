@@ -23,7 +23,7 @@ impl CookiePath {
             // o  The cookie-path and the request-path are identical.
             cookie_path == request_path ||
             (request_path.starts_with(cookie_path) &&
-             (cookie_path.ends_with("/") ||
+             (cookie_path.ends_with('/') ||
               &request_path[cookie_path.len()..cookie_path.len() + 1] == "/"))
         }
     }
@@ -82,7 +82,7 @@ impl CookiePath {
     /// Attempt to parse `path` as a `CookiePath`. If `path` does not have a leading "/",
     /// `None` is returned.
     pub fn parse(path: &str) -> Option<CookiePath> {
-        if path.starts_with("/") {
+        if path.starts_with('/') {
             Some(CookiePath(String::from(path), true))
         } else {
             None

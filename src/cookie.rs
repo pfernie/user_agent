@@ -39,13 +39,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            Error::NonHttpScheme => None,
-            Error::NonRelativeScheme => None,
-            Error::DomainMismatch => None,
-            Error::Expired => None,
-            Error::Parse => None,
-        }
+        None
     }
 }
 
@@ -116,7 +110,7 @@ impl<'a> Cookie<'a> {
     #[cfg_attr(not(test), allow(dead_code))]
     /// Whether this `Cookie` should be included for `request_url`
     pub fn matches(&self, request_url: &Url) -> bool {
-        self.path.matches(&request_url) && self.domain.matches(&request_url) &&
+        self.path.matches(request_url) && self.domain.matches(request_url) &&
         (!self.raw_cookie.secure() || is_secure(request_url)) &&
         (!self.raw_cookie.http_only() || is_http_scheme(request_url))
     }
@@ -255,11 +249,8 @@ impl<'a> From<Cookie<'a>> for RawCookie<'a> {
             builder = builder.path(String::from(cookie.path));
         }
 
-        match cookie.domain {
-            CookieDomain::Suffix(s) => {
-                builder = builder.domain(s);
-            }
-            _ => {}
+        if let CookieDomain::Suffix(s) = cookie.domain {
+            builder = builder.domain(s);
         }
 
         builder.finish()

@@ -55,7 +55,7 @@ impl CookieDomain {
                 CookieDomain::Suffix(ref suffix) => {
                     suffix == url_host ||
                     (is_host_name(url_host) && url_host.ends_with(suffix) &&
-                     url_host[(url_host.len() - suffix.len() - 1)..].starts_with("."))
+                     url_host[(url_host.len() - suffix.len() - 1)..].starts_with('.'))
                 }
                 CookieDomain::NotPresent | CookieDomain::Empty => false, // nothing can match the Empty case
             }
@@ -64,13 +64,11 @@ impl CookieDomain {
         }
     }
 
-    pub fn into_cow(&self) -> std::borrow::Cow<str> {
+    pub fn as_cow(&self) -> std::borrow::Cow<str> {
         match *self {
             CookieDomain::HostOnly(ref h) => std::borrow::Cow::Borrowed(h),
             CookieDomain::Suffix(ref s) => std::borrow::Cow::Borrowed(s),
-            CookieDomain::Empty | CookieDomain::NotPresent => {
-                panic!("cannot create Cow<'a, str> from CookieDomain::{Empty,NotPresnt}")
-            }
+            CookieDomain::Empty | CookieDomain::NotPresent => panic!("cannot create Cow<'a, str> from CookieDomain::Empty or CookieDomain::NotPresnt"),
         }
     }
 }
@@ -99,7 +97,7 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
 impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
     type Err = Error;
     fn try_from(cookie: &'a RawCookie<'c>) -> Result<CookieDomain, Self::Err> {
-        if let Some(ref domain) = cookie.domain() {
+        if let Some(domain) = cookie.domain() {
             idna::domain_to_ascii(domain.trim())
                 .map_err(Error::from)
                 .map(|domain| if domain.is_empty() {

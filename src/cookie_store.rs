@@ -218,7 +218,7 @@ impl CookieStore {
                    StoreAction::UpdatedExisting
                })
         } else {
-            return Err(CookieError::Expired);
+            Err(CookieError::Expired)
         }
     }
 
