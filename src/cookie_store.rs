@@ -1,7 +1,7 @@
 use CookieError;
 use Error;
 use cookie::Cookie;
-use cookie_domain::is_match as domain_match;
+use cookie_domain::{CookieDomain, is_match as domain_match};
 use cookie_path::is_match as path_match;
 
 use raw_cookie::Cookie as RawCookie;
@@ -22,7 +22,7 @@ pub enum StoreAction {
 
 pub type StoreResult<T> = Result<T, Error>;
 pub type InsertResult = Result<StoreAction, CookieError>;
-#[derive(PartialEq, Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct CookieStore {
     /// Cookies stored by domain, path, then name
     cookies: HashMap<String, HashMap<String, HashMap<String, Cookie<'static>>>>,

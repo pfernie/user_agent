@@ -5,6 +5,7 @@ use raw_cookie::Cookie as RawCookie;
 use try_from::TryFrom;
 use url::{Host, Url};
 
+use CookieError;
 use Error;
 use utils::is_host_name;
 
@@ -113,18 +114,6 @@ impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
     }
 }
 
-/// Construct a `CookieDomain::HostOnly` from a `url::Host`
-impl<'a> TryFrom<Host<&'a str>> for CookieDomain {
-    type Err = Error;
-    fn try_from(h: Host<&'a str>) -> Result<CookieDomain, Self::Err> {
-        Ok(match h {
-               Host::Domain(d) => CookieDomain::HostOnly(d.into()),
-               Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
-               Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
-           })
-    }
-}
-
 impl<'a> From<&'a CookieDomain> for String {
     fn from(c: &'a CookieDomain) -> String {
         match *c {
@@ -169,8 +158,7 @@ mod tests {
             let url = url("http://example.com");
             // HostOnly must be an identical string match, and may be an IP address
             // or a hostname
-            let host_name =
-                CookieDomain::try_from(url.host().unwrap()).expect("unable to parse domain");
+            let host_name = CookieDomain::host_only(&url).expect("unable to parse domain");
             matches(false, &host_name, "data:nonrelative");
             variants(true, &host_name, "http://example.com");
             variants(false, &host_name, "http://example.org");
@@ -187,7 +175,7 @@ mod tests {
 
         {
             let url = url("http://127.0.0.1");
-            let ip4 = CookieDomain::try_from(url.host().unwrap()).expect("unable to parse Ipv4");
+            let ip4 = CookieDomain::host_only(&url).expect("unable to parse Ipv4");
             matches(false, &ip4, "data:nonrelative");
             variants(true, &ip4, "http://127.0.0.1");
             variants(false, &ip4, "http://[::1]");
@@ -195,7 +183,7 @@ mod tests {
 
         {
             let url = url("http://[::1]");
-            let ip6 = CookieDomain::try_from(url.host().unwrap()).expect("unable to parse Ipv6");
+            let ip6 = CookieDomain::host_only(&url).expect("unable to parse Ipv6");
             matches(false, &ip6, "data:nonrelative");
             variants(false, &ip6, "http://127.0.0.1");
             variants(true, &ip6, "http://[::1]");
@@ -319,8 +307,7 @@ mod serde {
         #[test]
         fn serde() {
             let url = url("http://example.com");
-            encode_decode(&CookieDomain::try_from(url.host().unwrap())
-                              .expect("cannot parse domain"),
+            encode_decode(&CookieDomain::host_only(&url).expect("cannot parse domain"),
                           "{\"HostOnly\":\"example.com\"}");
             encode_decode(&CookieDomain::try_from(".example.com").expect("cannot parse domain"),
                           "{\"Suffix\":\"example.com\"}");

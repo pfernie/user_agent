@@ -157,31 +157,27 @@ impl<'a> Cookie<'a> {
             try!(Err(Error::NonHttpScheme))
         }
 
-        let domain = try!(match CookieDomain::try_from(&raw_cookie) {
-                              // 6.   If the domain-attribute is non-empty:
-                              Ok(d @ CookieDomain::Suffix(_)) => {
-            if !d.matches(request_url) {
-                //    If the canonicalized request-host does not domain-match the
-                //    domain-attribute:
-                //       Ignore the cookie entirely and abort these steps.
-                Err(Error::DomainMismatch)
-            } else {
-                //    Otherwise:
-                //       Set the cookie's host-only-flag to false.
-                //       Set the cookie's domain to the domain-attribute.
-                Ok(d)
+        let domain = match CookieDomain::try_from(&raw_cookie) {
+            // 6.   If the domain-attribute is non-empty:
+            Ok(d @ CookieDomain::Suffix(_)) => {
+                if !d.matches(request_url) {
+                    //    If the canonicalized request-host does not domain-match the
+                    //    domain-attribute:
+                    //       Ignore the cookie entirely and abort these steps.
+                    Err(Error::DomainMismatch)
+                } else {
+                    //    Otherwise:
+                    //       Set the cookie's host-only-flag to false.
+                    //       Set the cookie's domain to the domain-attribute.
+                    Ok(d)
+                }
             }
-        }
-                              Err(_) => Err(Error::Parse),
-                              // Otherwise:
-                              //    Set the cookie's host-only-flag to true.
-                              //    Set the cookie's domain to the canonicalized request-host.
-                              _ => {
-                request_url.host()
-                    .ok_or(Error::NonRelativeScheme)
-                    .and_then(|h| CookieDomain::try_from(h).map_err(|_| Error::Parse))
-            }
-                          });
+            Err(_) => Err(Error::Parse),
+            // Otherwise:
+            //    Set the cookie's host-only-flag to true.
+            //    Set the cookie's domain to the canonicalized request-host.
+            _ => CookieDomain::host_only(request_url),
+        }?;
 
         let path = raw_cookie
             .path()
@@ -265,7 +261,6 @@ mod tests {
     use raw_cookie::Cookie as RawCookie;
     use super::Cookie;
     use time::{Duration, Tm, now_utc};
-    use try_from::TryFrom;
     use url::Url;
 
     use utils::test as test_utils;
@@ -280,7 +275,7 @@ mod tests {
         let url = test_utils::url("http://example.com/foo/bar");
         cmp_domain("cookie1=value1",
                    "http://example.com/foo/bar",
-                   CookieDomain::try_from(url.host().unwrap()).expect("unable to parse domain"));
+                   CookieDomain::host_only(&url).expect("unable to parse domain"));
     }
 
     // per RFC6265:
@@ -291,7 +286,7 @@ mod tests {
         let url = test_utils::url("http://example.com/foo/bar");
         cmp_domain("cookie1=value1; Domain=",
                    "http://example.com/foo/bar",
-                   CookieDomain::try_from(url.host().unwrap()).expect("unable to parse domain"));
+                   CookieDomain::host_only(&url).expect("unable to parse domain"));
     }
 
     #[test]
