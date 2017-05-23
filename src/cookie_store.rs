@@ -191,17 +191,23 @@ impl CookieStore {
         // an expired one, so we need to do the old_cookie check below before checking
         // is_expired() on an incoming cookie
 
-        if let Some(old_cookie) = self.get_mut(&cookie.domain.as_cow(),
-                                               &cookie.path,
-                                               cookie.name()) {
-            if old_cookie.http_only() && !is_http_scheme(request_url) {
-                // 2.  If the newly created cookie was received from a "non-HTTP"
-                //    API and the old-cookie's http-only-flag is set, abort these
-                //    steps and ignore the newly created cookie entirely.
-                return Err(CookieError::NonHttpScheme);
-            } else if cookie.is_expired() {
-                old_cookie.expire();
-                return Ok(StoreAction::ExpiredExisting);
+        {
+            // At this point in parsing, any non-present Domain attribute should have been
+            // converted into a HostOnly variant
+            let cookie_domain = cookie
+                .domain
+                .as_cow()
+                .ok_or_else(|| CookieError::UnspecifiedDomain)?;
+            if let Some(old_cookie) = self.get_mut(&cookie_domain, &cookie.path, cookie.name()) {
+                if old_cookie.http_only() && !is_http_scheme(request_url) {
+                    // 2.  If the newly created cookie was received from a "non-HTTP"
+                    //    API and the old-cookie's http-only-flag is set, abort these
+                    //    steps and ignore the newly created cookie entirely.
+                    return Err(CookieError::NonHttpScheme);
+                } else if cookie.is_expired() {
+                    old_cookie.expire();
+                    return Ok(StoreAction::ExpiredExisting);
+                }
             }
         }
 

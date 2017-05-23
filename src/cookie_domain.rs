@@ -64,11 +64,13 @@ impl CookieDomain {
         }
     }
 
-    pub fn as_cow(&self) -> std::borrow::Cow<str> {
+    /// Get a borrowed string representation of the domain. For `Empty` and `NotPresent` variants,
+    /// `None` shall be returned;
+    pub fn as_cow(&self) -> Option<std::borrow::Cow<str>> {
         match *self {
-            CookieDomain::HostOnly(ref h) => std::borrow::Cow::Borrowed(h),
-            CookieDomain::Suffix(ref s) => std::borrow::Cow::Borrowed(s),
-            CookieDomain::Empty | CookieDomain::NotPresent => panic!("cannot create Cow<'a, str> from CookieDomain::Empty or CookieDomain::NotPresnt"),
+            CookieDomain::HostOnly(ref s) |
+            CookieDomain::Suffix(ref s) => Some(std::borrow::Cow::Borrowed(s)),
+            CookieDomain::Empty | CookieDomain::NotPresent => None,
         }
     }
 }

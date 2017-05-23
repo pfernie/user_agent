@@ -25,6 +25,8 @@ pub enum Error {
     Expired,
     /// `cookie::Cookie` Parse error
     Parse,
+    /// Tried to use a CookieDomain variant of `Empty` or `NotPresent` in a context requiring a Domain value
+    UnspecifiedDomain,
 }
 
 impl error::Error for Error {
@@ -35,6 +37,7 @@ impl error::Error for Error {
             Error::DomainMismatch => "request-uri does not domain-match the cookie",
             Error::Expired => "attempted to utilize an Expired Cookie",
             Error::Parse => "unable to parse string as cookie::Cookie",
+            Error::UnspecifiedDomain => "domain-attribute is not specified",
         }
     }
 
