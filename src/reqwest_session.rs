@@ -56,25 +56,33 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
+#[derive(Debug, error_chain)]
+pub enum ErrorKind {
+    Msg(String),
+    #[error_chain(foreign)]
+    Reqwest(reqwest::Error),
+    #[error_chain(foreign)]
+    UrlParse(::url::ParseError),
+}
 
 impl<'b> WithSession<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
-    type SendError = reqwest::Error;
+    type SendError = Error;
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
 
-    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+              P: FnOnce(Self::Request) -> Result<Self::Response>
     {
         unimplemented!()
     }
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+              P: FnOnce(Self::Request) -> Result<Self::Response>
     {
         unimplemented!()
     }

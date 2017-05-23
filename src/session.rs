@@ -59,9 +59,9 @@ pub trait WithSession<'b> {
 #[macro_export]
 macro_rules! define_req_with {
     ($with_fn: ident, |$u: ident, &$client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response, Self::SendError>
+        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response>
             where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+                  P: FnOnce(Self::Request) -> Result<Self::Response>
                   {
                       let $u: Url = try!($u.into_url());
                       let res = {
@@ -75,9 +75,9 @@ macro_rules! define_req_with {
                   }
     };
     ($with_fn: ident, |$u: ident, &mut $client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response, Self::SendError>
+        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> Result<Self::Response>
             where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+                  P: FnOnce(Self::Request) -> Result<Self::Response>
                   {
                       let $u: Url = try!($u.into_url());
                       let res = {
