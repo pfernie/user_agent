@@ -4,6 +4,7 @@ extern crate idna;
 #[macro_use]
 extern crate log;
 extern crate serde;
+#[cfg_attr(test, macro_use)]
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
@@ -26,6 +27,7 @@ pub use cookie_store::CookieStore;
 mod session;
 pub use session::{Session, WithSession};
 mod reqwest_session;
+pub use reqwest_session::ReqwestSession;
 mod utils;
 use serde_json::error::Error as JsonError;
 
