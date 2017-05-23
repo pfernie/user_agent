@@ -25,6 +25,9 @@ pub enum Error {
     Expired,
     /// `cookie::Cookie` Parse error
     Parse,
+    /// Cookie specified a public suffix domain-attribute that does not match the canonicalized
+    /// request-uri host
+    PublicSuffix,
     /// Tried to use a CookieDomain variant of `Empty` or `NotPresent` in a context requiring a Domain value
     UnspecifiedDomain,
 }
@@ -37,6 +40,7 @@ impl error::Error for Error {
             Error::DomainMismatch => "request-uri does not domain-match the cookie",
             Error::Expired => "attempted to utilize an Expired Cookie",
             Error::Parse => "unable to parse string as cookie::Cookie",
+            Error::PublicSuffix => "domain-attribute value is a public suffix",
             Error::UnspecifiedDomain => "domain-attribute is not specified",
         }
     }

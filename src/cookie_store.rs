@@ -5,6 +5,7 @@ use cookie_domain::{CookieDomain, is_match as domain_match};
 use cookie_path::is_match as path_match;
 
 use raw_cookie::Cookie as RawCookie;
+use publicsuffix;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
 use url::Url;
@@ -26,9 +27,17 @@ pub type InsertResult = Result<StoreAction, CookieError>;
 pub struct CookieStore {
     /// Cookies stored by domain, path, then name
     cookies: HashMap<String, HashMap<String, HashMap<String, Cookie<'static>>>>,
+    public_suffix_list: Option<publicsuffix::List>,
 }
 
 impl CookieStore {
+    pub fn with_suffix_list(self, psl: publicsuffix::List) -> CookieStore {
+        CookieStore {
+            cookies: self.cookies,
+            public_suffix_list: Some(psl),
+        }
+    }
+
     /// Returns true if the `CookieStore` contains an __unexpired__ `Cookie` corresponding to the
     /// specified `domain`, `path`, and `name`.
     pub fn contains(&self, domain: &str, path: &str, name: &str) -> bool {
@@ -174,12 +183,29 @@ impl CookieStore {
     /// `Ok(StoreAction::Inserted)`. If the `Cookie` is __expired__ *and* matches an existing
     /// `Cookie` in the store, the existing `Cookie` wil be `expired()` and
     /// `Ok(StoreAction::ExpiredExisting)` will be returned.
-    pub fn insert(&mut self, cookie: Cookie<'static>, request_url: &Url) -> InsertResult {
+    pub fn insert(&mut self, mut cookie: Cookie<'static>, request_url: &Url) -> InsertResult {
         if cookie.http_only() && !is_http_scheme(request_url) {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
             // cookie entirely.
             return Err(CookieError::NonHttpScheme);
+        } else if let Some(ref psl) = self.public_suffix_list {
+            // If the user agent is configured to reject "public suffixes"
+            if cookie.domain.is_public_suffix(psl) {
+                // and the domain-attribute is a public suffix:
+                if cookie.domain.host_is_identical(request_url) {
+                    //   If the domain-attribute is identical to the canonicalized
+                    //   request-host:
+                    //     Let the domain-attribute be the empty string.
+                    // (NB: at this point, an empty domain-attribute should be represented
+                    // as the HostOnly variant of CookieDomain)
+                    cookie.domain = CookieDomain::host_only(request_url)?;
+                } else {
+                    //   Otherwise:
+                    //     Ignore the cookie entirely and abort these steps.
+                    return Err(CookieError::PublicSuffix);
+                }
+            }
         } else if !cookie.domain.matches(request_url) {
             // If the canonicalized request-host does not domain-match the
             // domain-attribute:
@@ -293,7 +319,10 @@ impl CookieStore {
                     .insert(cookie.name().to_owned(), cookie);
             }
         }
-        Ok(CookieStore { cookies: cookies })
+        Ok(CookieStore {
+               cookies: cookies,
+               public_suffix_list: None,
+           })
     }
 
     /// Load JSON-formatted cookies from `reader`, skipping any __expired__ cookies

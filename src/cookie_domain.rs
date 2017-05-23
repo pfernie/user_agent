@@ -1,6 +1,7 @@
 use std;
 
 use idna;
+use publicsuffix;
 use raw_cookie::Cookie as RawCookie;
 use try_from::TryFrom;
 use url::{Host, Url};
@@ -75,6 +76,36 @@ impl CookieDomain {
             }
         } else {
             false // not a matchable scheme
+        }
+    }
+
+    /// Tests if the given `url::Url` has a request-host identical to the domain attribute
+    pub fn host_is_identical(&self, request_url: &Url) -> bool {
+        if let Some(url_host) = request_url.host_str() {
+            match *self {
+                CookieDomain::HostOnly(ref host) => host == url_host,
+                CookieDomain::Suffix(ref suffix) => suffix == url_host,
+                CookieDomain::NotPresent | CookieDomain::Empty => false, // nothing can match the Empty case
+            }
+        } else {
+            false // not a matchable scheme
+        }
+    }
+
+    /// Tests if the domain-attribute is a public suffix as indicated by the provided
+    /// `publicsuffix::List`.
+    pub fn is_public_suffix(&self, psl: &publicsuffix::List) -> bool {
+        if let Some(domain) = self.as_cow() {
+            // NB: a failure to parse the domain for publicsuffix usage probably indicates
+            // an over-all malformed Domain attribute. However, for the purposes of this test
+            // it suffices to indicate that the domain-attribute is not a public suffix, so we
+            // discard any such error via `.ok()`
+            psl.parse_domain(&domain)
+                .ok()
+                .and_then(|d| d.suffix().map(|d| d == &domain))
+                .unwrap_or(false)
+        } else {
+            false
         }
     }
 

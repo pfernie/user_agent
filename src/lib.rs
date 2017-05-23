@@ -6,6 +6,7 @@ extern crate env_logger;
 extern crate idna;
 #[macro_use]
 extern crate log;
+extern crate publicsuffix;
 extern crate serde;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
