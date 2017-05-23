@@ -119,7 +119,10 @@ impl SessionCookieStore for CookieStore {
 
     /// FIXME: document
     fn get_cookies(&self, url: &Url) -> Vec<&RawCookie<'static>> {
-        self.matches(&url).into_iter().map(|c| c.deref()).collect()
+        self.matches(&url)
+            .into_iter()
+            .map(|c| c.deref())
+            .collect()
     }
 }
 
@@ -143,17 +146,17 @@ impl<C> Session<C> {
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
         Ok(Session {
-            client: client,
-            store: store,
-        })
+               client: client,
+               store: store,
+           })
     }
 
     pub fn load_json<R: BufRead>(client: C, reader: R) -> StoreResult<Session<C>> {
         let store = try!(CookieStore::load_json(reader));
         Ok(Session {
-            client: client,
-            store: store,
-        })
+               client: client,
+               store: store,
+           })
     }
 
     pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> StoreResult<()>
@@ -266,10 +269,10 @@ mod tests {
         fn send(self) -> Result<TestClientResponse, TestError> {
             Ok(TestClientResponse(match self.body {
                                       Some(mut body) => {
-                                          let mut b = String::new();
-                                          body.read_to_string(&mut b).unwrap();
-                                          format!("body was: '{}'", b)
-                                      }
+                let mut b = String::new();
+                body.read_to_string(&mut b).unwrap();
+                format!("body was: '{}'", b)
+            }
                                       None => "no body sent".to_string(),
                                   },
                                   self.outgoing))
@@ -683,14 +686,14 @@ mod tests {
         s.get_with("https://www.example.com/", |r| {
                 let incoming = r.cookies.clone();
                 not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
-            // no outgoing cookies
+                // no outgoing cookies
                 r.send()
             })
             .unwrap();
         s.get_with("https://www.example.com/bar", |r| {
                 let incoming = r.cookies.clone();
                 not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
-            // no outgoing cookies
+                // no outgoing cookies
                 r.send()
             })
             .unwrap();

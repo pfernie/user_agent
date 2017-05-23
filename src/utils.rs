@@ -57,7 +57,7 @@ pub mod test {
                               |e| format!("; Expires={}", e.rfc822())),
                               max_age.map_or(String::from(""), |m| format!("; Max-Age={}", m))),
                       &url(url_str))
-            .unwrap()
+                .unwrap()
     }
     #[inline]
     pub fn in_days(days: i64) -> Tm {

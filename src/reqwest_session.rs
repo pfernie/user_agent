@@ -13,16 +13,15 @@ impl HasSetCookie for reqwest::Response {
             // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
             // the
             // correct version
-            set_cookie.iter()
-                .filter_map(|h_c| {
-                    match RawCookie::parse(h_c.to_string()) {
-                        Ok(raw_cookie) => Some(raw_cookie),
-                        Err(e) => {
-                            debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
-                            None
-                        }
-                    }
-                })
+            set_cookie
+                .iter()
+                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
+                                Ok(raw_cookie) => Some(raw_cookie),
+                                Err(e) => {
+                    debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
+                    None
+                }
+                            })
                 .collect::<Vec<_>>()
         } else {
             vec![]
@@ -37,9 +36,11 @@ impl CarriesCookies for reqwest::RequestBuilder {
             self
         } else {
             // again, reqwest cookie version mismatches ours, so need to do some tricks
-            let cookie_bytes = &cookies.iter()
-                .map(|rc| rc.encoded().to_string().into_bytes())
-                .collect::<Vec<_>>()[..];
+            let cookie_bytes = &cookies
+                                    .iter()
+                                    .map(|rc| rc.encoded().to_string().into_bytes())
+                                    .collect::<Vec<_>>()
+                                    [..];
             match CookieHeader::parse_header(cookie_bytes) {
                 Ok(cookie_header) => {
                     debug!("setting Cookie Header for request: {:?}", cookie_header);
@@ -133,7 +134,8 @@ mod tests {
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com", |req| req.send()).expect("www.msn.com get_with failed");
+        s.get_with("http://www.msn.com", |req| req.send())
+            .expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
         assert!(c3 > 0);
