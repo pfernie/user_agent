@@ -13,16 +13,15 @@ impl HasSetCookie for reqwest::Response {
             // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
             // the
             // correct version
-            set_cookie.iter()
-                .filter_map(|h_c| {
-                    match RawCookie::parse(h_c.to_string()) {
-                        Ok(raw_cookie) => Some(raw_cookie),
-                        Err(e) => {
-                            debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
-                            None
-                        }
-                    }
-                })
+            set_cookie
+                .iter()
+                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
+                                Ok(raw_cookie) => Some(raw_cookie),
+                                Err(e) => {
+                    debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
+                    None
+                }
+                            })
                 .collect::<Vec<_>>()
         } else {
             vec![]
@@ -37,9 +36,11 @@ impl CarriesCookies for reqwest::RequestBuilder {
             self
         } else {
             // again, reqwest cookie version mismatches ours, so need to do some tricks
-            let cookie_bytes = &cookies.iter()
-                .map(|rc| rc.encoded().to_string().into_bytes())
-                .collect::<Vec<_>>()[..];
+            let cookie_bytes = &cookies
+                                    .iter()
+                                    .map(|rc| rc.encoded().to_string().into_bytes())
+                                    .collect::<Vec<_>>()
+                                    [..];
             match CookieHeader::parse_header(cookie_bytes) {
                 Ok(cookie_header) => {
                     debug!("setting Cookie Header for request: {:?}", cookie_header);
@@ -55,25 +56,33 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
+#[derive(Debug, error_chain)]
+pub enum ErrorKind {
+    Msg(String),
+    #[error_chain(foreign)]
+    Reqwest(reqwest::Error),
+    #[error_chain(foreign)]
+    UrlParse(::url::ParseError),
+}
 
 impl<'b> WithSession<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
-    type SendError = reqwest::Error;
+    type SendError = Error;
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
 
-    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+              P: FnOnce(Self::Request) -> Result<Self::Response>
     {
         unimplemented!()
     }
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response, Self::SendError>
+    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
         where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response, Self::SendError>
+              P: FnOnce(Self::Request) -> Result<Self::Response>
     {
         unimplemented!()
     }
@@ -133,7 +142,8 @@ mod tests {
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com", |req| req.send()).expect("www.msn.com get_with failed");
+        s.get_with("http://www.msn.com", |req| req.send())
+            .expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
         assert!(c3 > 0);

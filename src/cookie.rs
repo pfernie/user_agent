@@ -31,9 +31,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::NonHttpScheme => "request-uri is not an http scheme but HttpOnly attribute set",
-            Error::NonRelativeScheme => {
-                "request-uri is not a relative scheme; cannot determine host"
-            }
+            Error::NonRelativeScheme => "request-uri is not a relative scheme; cannot determine host",
             Error::DomainMismatch => "request-uri does not domain-match the cookie",
             Error::Expired => "attempted to utilize an Expired Cookie",
             Error::Parse => "unable to parse string as cookie::Cookie",
@@ -98,18 +96,18 @@ mod serde_raw_cookie {
     use std::str::FromStr;
 
     pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+        where S: Serializer
+    {
         cookie.to_string().serialize(serializer)
     }
 
     pub fn deserialize<'a, D>(deserializer: D) -> Result<RawCookie<'static>, D::Error>
-    where D: Deserializer<'a> {
+        where D: Deserializer<'a>
+    {
         let cookie = String::deserialize(deserializer)?;
         match RawCookie::from_str(&cookie) {
             Ok(cookie) => Ok(cookie),
-            Err(_) => {
-                Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string"))
-            }
+            Err(_) => Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string")),
         }
     }
 }
@@ -165,32 +163,33 @@ impl<'a> Cookie<'a> {
         }
 
         let domain = try!(match CookieDomain::try_from(&raw_cookie) {
-            // 6.   If the domain-attribute is non-empty:
-            Ok(d @ CookieDomain::Suffix(_)) => {
-                if !d.matches(request_url) {
-                    //    If the canonicalized request-host does not domain-match the
-                    //    domain-attribute:
-                    //       Ignore the cookie entirely and abort these steps.
-                    Err(Error::DomainMismatch)
-                } else {
-                    //    Otherwise:
-                    //       Set the cookie's host-only-flag to false.
-                    //       Set the cookie's domain to the domain-attribute.
-                    Ok(d)
-                }
+                              // 6.   If the domain-attribute is non-empty:
+                              Ok(d @ CookieDomain::Suffix(_)) => {
+            if !d.matches(request_url) {
+                //    If the canonicalized request-host does not domain-match the
+                //    domain-attribute:
+                //       Ignore the cookie entirely and abort these steps.
+                Err(Error::DomainMismatch)
+            } else {
+                //    Otherwise:
+                //       Set the cookie's host-only-flag to false.
+                //       Set the cookie's domain to the domain-attribute.
+                Ok(d)
             }
-            Err(_) => Err(Error::Parse),
-            // Otherwise:
-            //    Set the cookie's host-only-flag to true.
-            //    Set the cookie's domain to the canonicalized request-host.
-            _ => {
+        }
+                              Err(_) => Err(Error::Parse),
+                              // Otherwise:
+                              //    Set the cookie's host-only-flag to true.
+                              //    Set the cookie's domain to the canonicalized request-host.
+                              _ => {
                 request_url.host()
                     .ok_or(Error::NonRelativeScheme)
                     .and_then(|h| CookieDomain::try_from(h).map_err(|_| Error::Parse))
             }
-        });
+                          });
 
-        let path = raw_cookie.path()
+        let path = raw_cookie
+            .path()
             .as_ref()
             .and_then(|p| CookiePath::parse(p))
             .unwrap_or_else(|| CookiePath::default_path(request_url));
@@ -206,9 +205,8 @@ impl<'a> Cookie<'a> {
         };
 
         // These are all tracked via Cookie, clear from RawCookie
-        let mut builder = RawCookieBuilder::new(
-            raw_cookie.name().to_owned(),
-            raw_cookie.value().to_owned());
+        let mut builder = RawCookieBuilder::new(raw_cookie.name().to_owned(),
+                                                raw_cookie.value().to_owned());
         builder = builder.secure(raw_cookie.secure());
         builder = builder.http_only(raw_cookie.http_only());
         if let Some(same_site) = raw_cookie.same_site() {
@@ -216,11 +214,11 @@ impl<'a> Cookie<'a> {
         }
 
         Ok(Cookie {
-            raw_cookie: builder.finish(),
-            path: path,
-            expires: expires,
-            domain: domain,
-        })
+               raw_cookie: builder.finish(),
+               path: path,
+               expires: expires,
+               domain: domain,
+           })
     }
 
     pub fn into_owned(self) -> Cookie<'static> {
@@ -242,9 +240,8 @@ impl<'a> Deref for Cookie<'a> {
 
 impl<'a> From<Cookie<'a>> for RawCookie<'a> {
     fn from(cookie: Cookie<'a>) -> RawCookie<'static> {
-        let mut builder = RawCookieBuilder::new(
-            cookie.name().to_owned(),
-            cookie.value().to_owned());
+        let mut builder = RawCookieBuilder::new(cookie.name().to_owned(),
+                                                cookie.value().to_owned());
 
         // Max-Age is relative, will not have same meaning now, so only set `Expires`.
         match cookie.expires {
@@ -446,9 +443,9 @@ mod tests {
                                          None,
                                          Some(9223372036854776));
         assert!(match ua.expires {
-            CookieExpiration::AtUtc(_) => true,
-            _ => false,
-        });
+                    CookieExpiration::AtUtc(_) => true,
+                    _ => false,
+                });
     }
 
     #[test]
@@ -488,9 +485,9 @@ mod tests {
         let ua =
             test_utils::make_cookie("cookie1=value1", "http://example.com/foo/bar", None, None);
         assert!(match ua.expires {
-            CookieExpiration::SessionEnd => true,
-            _ => false,
-        });
+                    CookieExpiration::SessionEnd => true,
+                    _ => false,
+                });
         assert!(!ua.is_expired());
         assert!(!ua.expires_by(&in_days(1)));
         assert!(!ua.expires_by(&in_days(-1)));
@@ -661,12 +658,14 @@ mod serde {
 
         fn encode_decode(c: &Cookie, expected: serde_json::Value) {
             let encoded = serde_json::to_value(c).unwrap();
-            assert_eq!(expected, encoded,
+            assert_eq!(expected,
+                       encoded,
                        "\nexpected: '{}'\n encoded: '{}'",
                        expected.to_string(),
                        encoded.to_string());
             let decoded: Cookie = serde_json::from_value(encoded).unwrap();
-            assert_eq!(*c, decoded,
+            assert_eq!(*c,
+                       decoded,
                        "\nexpected: '{}'\n decoded: '{}'",
                        c.to_string(),
                        decoded.to_string());
@@ -674,58 +673,50 @@ mod serde {
 
         #[test]
         fn serde() {
-            encode_decode(
-                &test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         None),
-                json!({
+            encode_decode(&test_utils::make_cookie("cookie1=value1",
+                                                   "http://example.com/foo/bar",
+                                                   None,
+                                                   None),
+                          json!({
                     "raw_cookie": "cookie1=value1",
                     "path": ["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": "SessionEnd"
-                })
-            );
+                }));
 
-            encode_decode(
-                &test_utils::make_cookie("cookie2=value2; Domain=example.com",
-                                         "http://foo.example.com/foo/bar",
-                                         None,
-                                         None),
-                json!({
+            encode_decode(&test_utils::make_cookie("cookie2=value2; Domain=example.com",
+                                                   "http://foo.example.com/foo/bar",
+                                                   None,
+                                                   None),
+                          json!({
                     "raw_cookie": "cookie2=value2",
                     "path": ["/foo", false],
                     "domain": { "Suffix": "example.com" },
                     "expires": "SessionEnd"
-                })
-            );
+                }));
 
-            encode_decode(
-                &test_utils::make_cookie("cookie3=value3; Path=/foo/bar",
-                                         "http://foo.example.com/foo",
-                                         None,
-                                         None),
-                json!({
+            encode_decode(&test_utils::make_cookie("cookie3=value3; Path=/foo/bar",
+                                                   "http://foo.example.com/foo",
+                                                   None,
+                                                   None),
+                          json!({
                     "raw_cookie": "cookie3=value3",
                     "path": ["/foo/bar", true],
                     "domain": { "HostOnly": "foo.example.com" },
                     "expires": "SessionEnd",
-                })
-            );
+                }));
 
             let at_utc = time::strptime("2015-08-11T16:41:42Z", "%Y-%m-%dT%H:%M:%SZ").unwrap();
-            encode_decode(
-                &test_utils::make_cookie("cookie4=value4",
-                                         "http://example.com/foo/bar",
-                                         Some(at_utc),
-                                         None),
-                json!({
+            encode_decode(&test_utils::make_cookie("cookie4=value4",
+                                                   "http://example.com/foo/bar",
+                                                   Some(at_utc),
+                                                   None),
+                          json!({
                     "raw_cookie": "cookie4=value4",
                     "path": ["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": at_utc.rfc3339().to_string() },
-                })
-            );
+                }));
 
             let expires = test_utils::make_cookie("cookie5=value5",
                                                   "http://example.com/foo/bar",
@@ -736,15 +727,13 @@ mod serde {
                 CookieExpiration::SessionEnd => unreachable!(),
             };
 
-            encode_decode(
-                &expires,
-                json!({
+            encode_decode(&expires,
+                          json!({
                     "raw_cookie": "cookie5=value5",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                })
-            );
+                }));
             let max_age = test_utils::make_cookie("cookie6=value6",
                                                   "http://example.com/foo/bar",
                                                   Some(at_utc),
@@ -753,15 +742,13 @@ mod serde {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(
-                &max_age,
-                json!({
+            encode_decode(&max_age,
+                          json!({
                     "raw_cookie": "cookie6=value6",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                })
-            );
+                }));
 
             let max_age = test_utils::make_cookie("cookie7=value7",
                                                   "http://example.com/foo/bar",
@@ -771,15 +758,13 @@ mod serde {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(
-                &max_age,
-                json!({
+            encode_decode(&max_age,
+                          json!({
                     "raw_cookie": "cookie7=value7",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                })
-            );
+                }));
         }
     }
 }

@@ -49,41 +49,51 @@ impl CookieStore {
     /// Returns a reference to the __unexpired__ `Cookie` corresponding to the specified `domain`,
     /// `path`, and `name`.
     pub fn get(&self, domain: &str, path: &str, name: &str) -> Option<&Cookie> {
-        self.get_any(domain, path, name).and_then(|cookie| {
-            if cookie.is_expired() {
-                None
-            } else {
-                Some(cookie)
-            }
-        })
+        self.get_any(domain, path, name)
+            .and_then(|cookie| if cookie.is_expired() {
+                          None
+                      } else {
+                          Some(cookie)
+                      })
     }
 
     /// Returns a mutable reference to the __unexpired__ `Cookie` corresponding to the specified
     /// `domain`, `path`, and `name`.
     fn get_mut(&mut self, domain: &str, path: &str, name: &str) -> Option<&mut Cookie<'static>> {
-        self.get_mut_any(domain, path, name).and_then(|cookie| {
-            if cookie.is_expired() {
-                None
-            } else {
-                Some(cookie)
-            }
-        })
+        self.get_mut_any(domain, path, name)
+            .and_then(|cookie| if cookie.is_expired() {
+                          None
+                      } else {
+                          Some(cookie)
+                      })
     }
 
     /// Returns a reference to the (possibly __expired__) `Cookie` corresponding to the specified
     /// `domain`, `path`, and `name`.
     pub fn get_any(&self, domain: &str, path: &str, name: &str) -> Option<&Cookie<'static>> {
-        self.cookies.get(domain).and_then(|domain_cookies| {
-            domain_cookies.get(path).and_then(|path_cookies| path_cookies.get(name))
-        })
+        self.cookies
+            .get(domain)
+            .and_then(|domain_cookies| {
+                          domain_cookies
+                              .get(path)
+                              .and_then(|path_cookies| path_cookies.get(name))
+                      })
     }
 
     /// Returns a mutable reference to the (possibly __expired__) `Cookie` corresponding to the
     /// specified `domain`, `path`, and `name`.
-    fn get_mut_any(&mut self, domain: &str, path: &str, name: &str) -> Option<&mut Cookie<'static>> {
-        self.cookies.get_mut(domain).and_then(|domain_cookies| {
-            domain_cookies.get_mut(path).and_then(|path_cookies| path_cookies.get_mut(name))
-        })
+    fn get_mut_any(&mut self,
+                   domain: &str,
+                   path: &str,
+                   name: &str)
+                   -> Option<&mut Cookie<'static>> {
+        self.cookies
+            .get_mut(domain)
+            .and_then(|domain_cookies| {
+                          domain_cookies
+                              .get_mut(path)
+                              .and_then(|path_cookies| path_cookies.get_mut(name))
+                      })
     }
 
     /// Removes a `Cookie` from the store, returning the `Cookie` if it was in the store
@@ -131,12 +141,16 @@ impl CookieStore {
                 dcs.iter()
                     .filter(|&(p, _)| path_match(p, request_url))
                     .flat_map(|(_, pcs)| {
-                        pcs.values()
-                            .filter(|c| !c.is_expired() && c.matches(request_url))
-                    })
+                                  pcs.values()
+                                      .filter(|c| !c.is_expired() && c.matches(request_url))
+                              })
             });
         match (!is_http_scheme(request_url), !is_secure(request_url)) {
-            (true, true) => cookies.filter(|c| !c.http_only() && !c.secure()).collect(),
+            (true, true) => {
+                cookies
+                    .filter(|c| !c.http_only() && !c.secure())
+                    .collect()
+            }
             (true, false) => cookies.filter(|c| !c.http_only()).collect(),
             (false, true) => cookies.filter(|c| !c.secure()).collect(),
             (false, false) => cookies.collect(),
@@ -146,16 +160,17 @@ impl CookieStore {
     /// Parses a new `Cookie` from `cookie_str` and inserts it into the store.
     pub fn parse(&mut self, cookie_str: &str, request_url: &Url) -> InsertResult {
         Cookie::parse(cookie_str, request_url).and_then(|cookie| {
-            self.insert(cookie.into_owned(), request_url)
-        })
+                                                            self.insert(cookie.into_owned(),
+                                                                        request_url)
+                                                        })
     }
 
     /// Converts a `cookie::Cookie` (from the `cookie` crate) into a `user_agent::Cookie` and
     /// inserts it into the store.
     pub fn insert_raw(&mut self, cookie: RawCookie, request_url: &Url) -> InsertResult {
         Cookie::new(cookie, request_url).and_then(|cookie| {
-            self.insert(cookie.into_owned(), request_url)
-        })
+                                                      self.insert(cookie.into_owned(), request_url)
+                                                  })
     }
 
     /// Inserts `cookie`, received from `request_url`, into the store, following the rules of the
@@ -181,8 +196,9 @@ impl CookieStore {
         // an expired one, so we need to do the old_cookie check below before checking
         // is_expired() on an incoming cookie
 
-        if let Some(old_cookie) =
-               self.get_mut(&cookie.domain.into_cow(), &cookie.path, &cookie.name()) {
+        if let Some(old_cookie) = self.get_mut(&cookie.domain.into_cow(),
+                                               &cookie.path,
+                                               &cookie.name()) {
             if old_cookie.http_only() && !is_http_scheme(request_url) {
                 // 2.  If the newly created cookie was received from a "non-HTTP"
                 //    API and the old-cookie's http-only-flag is set, abort these
@@ -196,16 +212,16 @@ impl CookieStore {
 
         if !cookie.is_expired() {
             Ok(if self.cookies
-                .entry(String::from(&cookie.domain))
-                .or_insert_with(HashMap::new)
-                .entry(String::from(&cookie.path))
-                .or_insert_with(HashMap::new)
-                .insert(cookie.name().to_owned(), cookie)
-                .is_none() {
-                StoreAction::Inserted
-            } else {
-                StoreAction::UpdatedExisting
-            })
+                      .entry(String::from(&cookie.domain))
+                      .or_insert_with(HashMap::new)
+                      .entry(String::from(&cookie.path))
+                      .or_insert_with(HashMap::new)
+                      .insert(cookie.name().to_owned(), cookie)
+                      .is_none() {
+                   StoreAction::Inserted
+               } else {
+                   StoreAction::UpdatedExisting
+               })
         } else {
             return Err(CookieError::Expired);
         }
@@ -219,15 +235,18 @@ impl CookieStore {
     /// An iterator visiting all the __unexpired__ cookies in the store
     pub fn iter_unexpired<'a>(&'a self) -> Box<Iterator<Item = &'a Cookie<'static>> + 'a> {
         Box::new(self.cookies
-            .values()
-            .flat_map(|dcs| dcs.values())
-            .flat_map(|pcs| pcs.values())
-            .filter(|c| !c.is_expired()))
+                     .values()
+                     .flat_map(|dcs| dcs.values())
+                     .flat_map(|pcs| pcs.values())
+                     .filter(|c| !c.is_expired()))
     }
 
     /// An iterator visiting all (including __expired__) cookies in the store
     pub fn iter_any<'a>(&'a self) -> Box<Iterator<Item = &'a Cookie<'static>> + 'a> {
-        Box::new(self.cookies.values().flat_map(|dcs| dcs.values()).flat_map(|pcs| pcs.values()))
+        Box::new(self.cookies
+                     .values()
+                     .flat_map(|dcs| dcs.values())
+                     .flat_map(|pcs| pcs.values()))
     }
 
     /// Serialize any __unexpired__ and __persistent__ cookies in the store with `cookie_to_string`
@@ -238,13 +257,11 @@ impl CookieStore {
               Error: From<E>
     {
         for cookie in self.iter_unexpired()
-            .filter_map(|c| {
-                if c.is_persistent() {
-                    Some(cookie_to_string(c))
-                } else {
-                    None
-                }
-            }) {
+                .filter_map(|c| if c.is_persistent() {
+                                Some(cookie_to_string(c))
+                            } else {
+                                None
+                            }) {
             try!(writeln!(writer, "{}", try!(cookie)));
         }
         Ok(())
@@ -267,7 +284,8 @@ impl CookieStore {
         for line in reader.lines() {
             let cookie: Cookie = try!(cookie_from_str(&try!(line)[..]));
             if !cookie.is_expired() {
-                cookies.entry(String::from(&cookie.domain))
+                cookies
+                    .entry(String::from(&cookie.domain))
                     .or_insert_with(HashMap::new)
                     .entry(String::from(&cookie.path))
                     .or_insert_with(HashMap::new)
@@ -629,7 +647,7 @@ mod tests {
         let mut store = CookieStore::new();
         let c = Cookie::parse("cookie1=value1; HttpOnly",
                               &test_utils::url("http://example.com/foo/bar"))
-            .unwrap();
+                .unwrap();
         // cannot add a HttpOnly cookies from a non-http source
         non_http_scheme!(store.insert(c, &test_utils::url("ftp://example.com/foo/bar")));
     }
@@ -883,7 +901,8 @@ mod tests {
     }
 
     fn matches_are(store: &CookieStore, url: &str, exp: Vec<&str>) {
-        let matches = store.matches(&test_utils::url(url))
+        let matches = store
+            .matches(&test_utils::url(url))
             .iter()
             .map(|c| format!("{}={}", c.name(), c.value()))
             .collect::<Vec<_>>();

@@ -5,11 +5,13 @@ use raw_cookie::Cookie as RawCookie;
 use try_from::TryFrom;
 use url::{Host, Url};
 
-use ::Error;
+use Error;
 use utils::is_host_name;
 
 pub fn is_match(domain: &str, request_url: &Url) -> bool {
-    CookieDomain::try_from(domain).map(|domain| domain.matches(request_url)).unwrap_or(false)
+    CookieDomain::try_from(domain)
+        .map(|domain| domain.matches(request_url))
+        .unwrap_or(false)
 }
 
 /// The domain of a `Cookie`
@@ -79,12 +81,12 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
     type Err = Error;
     fn try_from(value: &str) -> Result<CookieDomain, Self::Err> {
         idna::domain_to_ascii(value.trim())
-            .map_err(|_| Error::Idna)
+            .map_err(Error::from)
             .map(|domain| if domain.is_empty() {
-                CookieDomain::Empty
-            } else {
-                CookieDomain::Suffix(domain)
-            })
+                     CookieDomain::Empty
+                 } else {
+                     CookieDomain::Suffix(domain)
+                 })
     }
 }
 
@@ -99,12 +101,12 @@ impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
     fn try_from(cookie: &'a RawCookie<'c>) -> Result<CookieDomain, Self::Err> {
         if let Some(ref domain) = cookie.domain() {
             idna::domain_to_ascii(domain.trim())
-                .map_err(|_| Error::Idna)
+                .map_err(Error::from)
                 .map(|domain| if domain.is_empty() {
-                    CookieDomain::Empty
-                } else {
-                    CookieDomain::Suffix(domain)
-                })
+                         CookieDomain::Empty
+                     } else {
+                         CookieDomain::Suffix(domain)
+                     })
         } else {
             Ok(CookieDomain::NotPresent)
         }
@@ -116,10 +118,10 @@ impl<'a> TryFrom<Host<&'a str>> for CookieDomain {
     type Err = Error;
     fn try_from(h: Host<&'a str>) -> Result<CookieDomain, Self::Err> {
         Ok(match h {
-            Host::Domain(d) => CookieDomain::HostOnly(d.into()),
-            Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
-            Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
-        })
+               Host::Domain(d) => CookieDomain::HostOnly(d.into()),
+               Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
+               Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
+           })
     }
 }
 
@@ -167,8 +169,8 @@ mod tests {
             let url = url("http://example.com");
             // HostOnly must be an identical string match, and may be an IP address
             // or a hostname
-            let host_name = CookieDomain::try_from(url.host().unwrap())
-                .expect("unable to parse domain");
+            let host_name =
+                CookieDomain::try_from(url.host().unwrap()).expect("unable to parse domain");
             matches(false, &host_name, "data:nonrelative");
             variants(true, &host_name, "http://example.com");
             variants(false, &host_name, "http://example.org");
@@ -244,10 +246,10 @@ mod tests {
     fn matches_suffix() {
         {
             let suffix = CookieDomain::try_from("example.com").expect("unable to parse domain");
-            variants(true, &suffix, "http://example.com");     //  exact match
+            variants(true, &suffix, "http://example.com"); //  exact match
             variants(true, &suffix, "http://foo.example.com"); //  suffix match
-            variants(false, &suffix, "http://example.org");    //  no match
-            variants(false, &suffix, "http://xample.com");     //  request is the suffix, no match
+            variants(false, &suffix, "http://example.org"); //  no match
+            variants(false, &suffix, "http://xample.com"); //  request is the suffix, no match
             variants(false, &suffix, "http://fooexample.com"); //  suffix, but no "." b/w foo and example, no match
         }
 

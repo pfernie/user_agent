@@ -167,7 +167,7 @@ mod tests {
         fn get_path(cp: &str, url: &str) -> String {
             CookiePath::new(cp,
                             &Url::parse(url).expect("unable to parse url in bad_path_defaults"))
-                .into()
+                    .into()
         }
         assert_eq!(get_path("", "http://example.com/"), "/");
         assert_eq!(get_path("a/foo", "http://example.com/"), "/");
@@ -187,9 +187,9 @@ mod tests {
     #[test]
     fn identical_paths() {
         // o  The cookie-path and the request-path are identical.
-        is_match("/foo/bus", "/foo/bus");     // identical
+        is_match("/foo/bus", "/foo/bus"); // identical
         is_mismatch("/foo/bus", "/foo/buss"); // trailing character
-        is_mismatch("/foo/bus", "/zoo/bus");  // character mismatch
+        is_mismatch("/foo/bus", "/zoo/bus"); // character mismatch
         is_mismatch("/foo/bus", "/zfoo/bus"); // leading character
     }
 
@@ -197,10 +197,10 @@ mod tests {
     fn cookie_path_prefix1() {
         // o  The cookie-path is a prefix of the request-path, and the last
         //    character of the cookie-path is %x2F ("/").
-        is_match("/foo/", "/foo/bus");           // cookie-path a prefix and ends in "/"
-        is_mismatch("/bar", "/foo/bus");         // cookie-path not a prefix of request-path
+        is_match("/foo/", "/foo/bus"); // cookie-path a prefix and ends in "/"
+        is_mismatch("/bar", "/foo/bus"); // cookie-path not a prefix of request-path
         is_mismatch("/foo/bus/bar", "/foo/bus"); // cookie-path not a prefix of request-path
-        is_mismatch("/fo", "/foo/bus");          // cookie-path a prefix, but last char != "/" and first char in request-path ("o") after prefix != "/"
+        is_mismatch("/fo", "/foo/bus"); // cookie-path a prefix, but last char != "/" and first char in request-path ("o") after prefix != "/"
     }
 
     #[test]
@@ -208,9 +208,9 @@ mod tests {
         // o  The cookie-path is a prefix of the request-path, and the first
         //    character of the request-path that is not included in the cookie-
         //    path is a %x2F ("/") character.
-        is_match("/foo", "/foo/bus");            // cookie-path a prefix of request-path, and next char in request-path = "/"
-        is_mismatch("/bar", "/foo/bus");         // cookie-path not a prefix of request-path
+        is_match("/foo", "/foo/bus"); // cookie-path a prefix of request-path, and next char in request-path = "/"
+        is_mismatch("/bar", "/foo/bus"); // cookie-path not a prefix of request-path
         is_mismatch("/foo/bus/bar", "/foo/bus"); // cookie-path not a prefix of request-path
-        is_mismatch("/fo", "/foo/bus");          // cookie-path a prefix, but next char in request-path ("o") != "/"
+        is_mismatch("/fo", "/foo/bus"); // cookie-path a prefix, but next char in request-path ("o") != "/"
     }
 }
