@@ -48,6 +48,19 @@ pub enum CookieDomain {
 /// The concept of a domain match per [IETF RFC6265 Section
 /// 5.1.3](http://tools.ietf.org/html/rfc6265#section-5.1.3)
 impl CookieDomain {
+    /// Get the CookieDomain::HostOnly variant based on `request_url`. This is the effective behavior of
+    /// setting the domain-attribute to empty
+    pub fn host_only(request_url: &Url) -> Result<CookieDomain, CookieError> {
+        request_url
+            .host()
+            .ok_or(CookieError::NonRelativeScheme)
+            .map(|h| match h {
+                     Host::Domain(d) => CookieDomain::HostOnly(d.into()),
+                     Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
+                     Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
+                 })
+    }
+
     /// Tests if the given `url::Url` meets the domain-match criteria
     pub fn matches(&self, request_url: &Url) -> bool {
         if let Some(url_host) = request_url.host_str() {
