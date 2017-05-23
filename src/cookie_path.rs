@@ -69,7 +69,6 @@ impl CookiePath {
         CookiePath(cp, false)
     }
 
-    #[allow(dead_code)]
     /// Attempt to parse `path` as a `CookiePath`; if unsuccessful, the default-path of
     /// `request_url` will be returned as the `CookiePath`.
     pub fn new(path: &str, request_url: &Url) -> CookiePath {

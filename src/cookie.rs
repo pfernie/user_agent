@@ -107,7 +107,6 @@ mod serde_raw_cookie {
 }
 
 impl<'a> Cookie<'a> {
-    #[cfg_attr(not(test), allow(dead_code))]
     /// Whether this `Cookie` should be included for `request_url`
     pub fn matches(&self, request_url: &Url) -> bool {
         self.path.matches(request_url) && self.domain.matches(request_url) &&
@@ -133,7 +132,6 @@ impl<'a> Cookie<'a> {
         self.expires.is_expired()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     /// Indicates if the `Cookie` expires as of `utc_tm`.
     pub fn expires_by(&self, utc_tm: &time::Tm) -> bool {
         self.expires.expires_by(utc_tm)
