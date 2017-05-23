@@ -102,7 +102,7 @@ impl CookieDomain {
             // discard any such error via `.ok()`
             psl.parse_domain(&domain)
                 .ok()
-                .and_then(|d| d.suffix().map(|d| d == &domain))
+                .and_then(|d| d.suffix().map(|d| d == domain))
                 .unwrap_or(false)
         } else {
             false
