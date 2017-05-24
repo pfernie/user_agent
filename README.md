@@ -1,8 +1,5 @@
 [![Build Status](https://travis-ci.org/pfernie/user_agent.svg?branch=master)](https://travis-ci.org/pfernie/user_agent)
-
-# Library dependencies
-* error-chain
-* env_logger
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/user_agent)
 
 # Future direction
 This project has stagnated, but perhaps can provide a foundation for future work. In particular, I beyond any of the TODO/FIXMEs listed, some thoughts. See https://github.com/seanmonstar/reqwest/issues/14 for some background/history. The work that @SergioBenitez did in https://github.com/alexcrichton/cookie-rs and related answered/solved some of the questions in the above issue, esp. w.r.t. efficiency of cookie handling. At the same time, it raised some questions for me in terms of a good direction to take this code in:
