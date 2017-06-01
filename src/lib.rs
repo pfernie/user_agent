@@ -28,7 +28,7 @@ pub use cookie_store::CookieStore;
 #[macro_use]
 mod session;
 pub use session::{Session, WithSession};
-mod reqwest_session;
+pub mod reqwest_session;
 pub use reqwest_session::ReqwestSession;
 mod utils;
 
