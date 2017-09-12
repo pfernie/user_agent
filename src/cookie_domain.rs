@@ -127,8 +127,10 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
     fn try_from(value: &str) -> Result<CookieDomain, Self::Err> {
         idna::domain_to_ascii(value.trim())
             .map_err(Error::from)
-            .map(|domain| if domain.is_empty() {
+            .map(|domain| if domain.is_empty() || "." == domain {
                 CookieDomain::Empty
+            } else if domain.starts_with('.') {
+                CookieDomain::Suffix(String::from(&domain[1..]))
             } else {
                 CookieDomain::Suffix(domain)
             })
@@ -246,8 +248,13 @@ mod tests {
             CookieDomain::Empty,
             CookieDomain::try_from(".").expect("unable to parse domain")
         );
+        // per [IETF RFC6265 Section 5.2.3](https://tools.ietf.org/html/rfc6265#section-5.2.3)
+        //If the first character of the attribute-value string is %x2E ("."):
+        //
+        //Let cookie-domain be the attribute-value without the leading %x2E
+        //(".") character.
         assert_eq!(
-            CookieDomain::Empty,
+            CookieDomain::Suffix(String::from(".")),
             CookieDomain::try_from("..").expect("unable to parse domain")
         );
         assert_eq!(
@@ -259,7 +266,7 @@ mod tests {
             CookieDomain::try_from(".example.com").expect("unable to parse domain")
         );
         assert_eq!(
-            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::Suffix(String::from(".example.com")),
             CookieDomain::try_from("..example.com").expect("unable to parse domain")
         );
     }
@@ -319,14 +326,15 @@ mod tests {
         }
 
         {
-            // multiple leading dots are stripped
+            // only first leading dot is stripped
             let suffix = CookieDomain::try_from("..example.com").expect("unable to parse domain");
-            variants(true, &suffix, "http://example.com");
-            variants(true, &suffix, "http://foo.example.com");
+            variants(true, &suffix, "http://.example.com");
+            variants(true, &suffix, "http://foo..example.com");
+            variants(false, &suffix, "http://example.com");
+            variants(false, &suffix, "http://foo.example.com");
             variants(false, &suffix, "http://example.org");
             variants(false, &suffix, "http://xample.com");
             variants(false, &suffix, "http://fooexample.com");
-            variants(true, &suffix, "http://.example.com"); // Url::parse will parse this as "http://example.com"
         }
 
         {

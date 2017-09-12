@@ -370,7 +370,7 @@ mod tests {
         cmp_domain(
             "cookie1=value1; Domain=..example.com",
             "http://..example.com/foo/bar",
-            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::Suffix(String::from(".example.com")),
         );
     }
 
