@@ -30,21 +30,21 @@ impl HasSetCookie for reqwest::Response {
 }
 
 impl CarriesCookies for reqwest::RequestBuilder {
-    fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
+    fn add_cookies(mut self, cookies: Vec<&RawCookie<'static>>) -> Self {
         if cookies.is_empty() {
             debug!("no cookies to add to request");
             self
         } else {
             // again, reqwest cookie version mismatches ours, so need to do some tricks
-            let cookie_bytes = &cookies
+            let cookie_bytes = cookies
                                     .iter()
                                     .map(|rc| rc.encoded().to_string().into_bytes())
-                                    .collect::<Vec<_>>()
-                                    [..];
-            match CookieHeader::parse_header(cookie_bytes) {
+                                    .collect::<Vec<_>>();
+            match CookieHeader::parse_header(&cookie_bytes.into()) {
                 Ok(cookie_header) => {
                     debug!("setting Cookie Header for request: {:?}", cookie_header);
-                    self.header(cookie_header)
+                    self.header(cookie_header);
+                    self
                 }
                 Err(e) => {
                     debug!("error parsing cookie set for request: {}", e);
