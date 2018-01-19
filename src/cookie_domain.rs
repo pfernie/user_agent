@@ -56,10 +56,10 @@ impl CookieDomain {
             .host()
             .ok_or(CookieError::NonRelativeScheme)
             .map(|h| match h {
-                     Host::Domain(d) => CookieDomain::HostOnly(d.into()),
-                     Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
-                     Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
-                 })
+                Host::Domain(d) => CookieDomain::HostOnly(d.into()),
+                Host::Ipv4(addr) => CookieDomain::HostOnly(format!("{}", addr)),
+                Host::Ipv6(addr) => CookieDomain::HostOnly(format!("[{}]", addr)),
+            })
     }
 
     /// Tests if the given `url::Url` meets the domain-match criteria
@@ -69,8 +69,8 @@ impl CookieDomain {
                 CookieDomain::HostOnly(ref host) => host == url_host,
                 CookieDomain::Suffix(ref suffix) => {
                     suffix == url_host ||
-                    (is_host_name(url_host) && url_host.ends_with(suffix) &&
-                     url_host[(url_host.len() - suffix.len() - 1)..].starts_with('.'))
+                        (is_host_name(url_host) && url_host.ends_with(suffix) &&
+                             url_host[(url_host.len() - suffix.len() - 1)..].starts_with('.'))
                 }
                 CookieDomain::NotPresent | CookieDomain::Empty => false, // nothing can match the Empty case
             }
@@ -128,10 +128,10 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
         idna::domain_to_ascii(value.trim())
             .map_err(Error::from)
             .map(|domain| if domain.is_empty() {
-                     CookieDomain::Empty
-                 } else {
-                     CookieDomain::Suffix(domain)
-                 })
+                CookieDomain::Empty
+            } else {
+                CookieDomain::Suffix(domain)
+            })
     }
 }
 
@@ -148,10 +148,10 @@ impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
             idna::domain_to_ascii(domain.trim())
                 .map_err(Error::from)
                 .map(|domain| if domain.is_empty() {
-                         CookieDomain::Empty
-                     } else {
-                         CookieDomain::Suffix(domain)
-                     })
+                    CookieDomain::Empty
+                } else {
+                    CookieDomain::Suffix(domain)
+                })
         } else {
             Ok(CookieDomain::NotPresent)
         }
@@ -180,11 +180,13 @@ mod tests {
     #[inline]
     fn matches(expected: bool, cookie_domain: &CookieDomain, url: &str) {
         let url = Url::parse(url).unwrap();
-        assert!(expected == cookie_domain.matches(&url),
-                "cookie_domain: {:?} url: {:?}, url.host_str(): {:?}",
-                cookie_domain,
-                url,
-                url.host_str());
+        assert!(
+            expected == cookie_domain.matches(&url),
+            "cookie_domain: {:?} url: {:?}, url.host_str(): {:?}",
+            cookie_domain,
+            url,
+            url.host_str()
+        );
     }
 
     #[inline]
@@ -236,18 +238,30 @@ mod tests {
 
     #[test]
     fn from_strs() {
-        assert_eq!(CookieDomain::Empty,
-                   CookieDomain::try_from("").expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Empty,
-                   CookieDomain::try_from(".").expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Empty,
-                   CookieDomain::try_from("..").expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Suffix(String::from("example.com")),
-                   CookieDomain::try_from("example.com").expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Suffix(String::from("example.com")),
-                   CookieDomain::try_from(".example.com").expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Suffix(String::from("example.com")),
-                   CookieDomain::try_from("..example.com").expect("unable to parse domain"));
+        assert_eq!(
+            CookieDomain::Empty,
+            CookieDomain::try_from("").expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Empty,
+            CookieDomain::try_from(".").expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Empty,
+            CookieDomain::try_from("..").expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::try_from("example.com").expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::try_from(".example.com").expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::try_from("..example.com").expect("unable to parse domain")
+        );
     }
 
     #[test]
@@ -255,23 +269,32 @@ mod tests {
         fn raw_cookie(s: &str) -> RawCookie {
             RawCookie::parse(s).unwrap()
         }
-        assert_eq!(CookieDomain::NotPresent,
-                   CookieDomain::try_from(&raw_cookie("cookie=value"))
-                       .expect("unable to parse domain"));
+        assert_eq!(
+            CookieDomain::NotPresent,
+            CookieDomain::try_from(&raw_cookie("cookie=value")).expect("unable to parse domain")
+        );
         // cookie::Cookie handles this (cookie.domain == None)
-        assert_eq!(CookieDomain::NotPresent,
-                   CookieDomain::try_from(&raw_cookie("cookie=value; Domain="))
-                       .expect("unable to parse domain"));
+        assert_eq!(
+            CookieDomain::NotPresent,
+            CookieDomain::try_from(&raw_cookie("cookie=value; Domain="))
+                .expect("unable to parse domain")
+        );
         // cookie::Cookie does not handle this (empty after stripping leading dot)
-        assert_eq!(CookieDomain::Empty,
-                   CookieDomain::try_from(&raw_cookie("cookie=value; Domain=."))
-                       .expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Suffix(String::from("example.com")),
-                   CookieDomain::try_from(&raw_cookie("cookie=value; Domain=.example.com"))
-                       .expect("unable to parse domain"));
-        assert_eq!(CookieDomain::Suffix(String::from("example.com")),
-                   CookieDomain::try_from(&raw_cookie("cookie=value; Domain=example.com"))
-                       .expect("unable to parse domain"));
+        assert_eq!(
+            CookieDomain::Empty,
+            CookieDomain::try_from(&raw_cookie("cookie=value; Domain=."))
+                .expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::try_from(&raw_cookie("cookie=value; Domain=.example.com"))
+                .expect("unable to parse domain")
+        );
+        assert_eq!(
+            CookieDomain::Suffix(String::from("example.com")),
+            CookieDomain::try_from(&raw_cookie("cookie=value; Domain=example.com"))
+                .expect("unable to parse domain")
+        );
     }
 
     #[test]
@@ -337,24 +360,32 @@ mod serde {
 
         fn encode_decode(cd: &CookieDomain, exp_json: &str) {
             let encoded = serde_json::to_string(cd).unwrap();
-            assert!(exp_json == encoded,
-                    "expected: '{}'\n encoded: '{}'",
-                    exp_json,
-                    encoded);
+            assert!(
+                exp_json == encoded,
+                "expected: '{}'\n encoded: '{}'",
+                exp_json,
+                encoded
+            );
             let decoded: CookieDomain = serde_json::from_str(&encoded).unwrap();
-            assert!(*cd == decoded,
-                    "expected: '{:?}'\n decoded: '{:?}'",
-                    cd,
-                    decoded);
+            assert!(
+                *cd == decoded,
+                "expected: '{:?}'\n decoded: '{:?}'",
+                cd,
+                decoded
+            );
         }
 
         #[test]
         fn serde() {
             let url = url("http://example.com");
-            encode_decode(&CookieDomain::host_only(&url).expect("cannot parse domain"),
-                          "{\"HostOnly\":\"example.com\"}");
-            encode_decode(&CookieDomain::try_from(".example.com").expect("cannot parse domain"),
-                          "{\"Suffix\":\"example.com\"}");
+            encode_decode(
+                &CookieDomain::host_only(&url).expect("cannot parse domain"),
+                "{\"HostOnly\":\"example.com\"}",
+            );
+            encode_decode(
+                &CookieDomain::try_from(".example.com").expect("cannot parse domain"),
+                "{\"Suffix\":\"example.com\"}",
+            );
             encode_decode(&CookieDomain::NotPresent, "\"NotPresent\"");
             encode_decode(&CookieDomain::Empty, "\"Empty\"");
         }

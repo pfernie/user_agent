@@ -51,6 +51,9 @@ pub enum ErrorKind {
     /// URL Parse Error
     #[error_chain(foreign)]
     UrlParse(url::ParseError),
+    /// Error from reqwest
+    #[error_chain(foreign)]
+    Reqwest(reqwest::Error),
 }
 
 impl From<IdnaError> for Error {
