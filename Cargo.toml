@@ -3,9 +3,6 @@ authors = ["patrick.fernie@gmail.com"]
 name = "user_agent"
 version = "0.2.0"
 
-[dev-dependencies]
-env_logger = "0.4.3"
-
 [dependencies]
 cookie = { version = "0.8.1", features = ["percent-encode"] }
 derive-error-chain = "0.10.1"
@@ -20,3 +17,7 @@ serde_json = "1.0.2"
 time = "0.1"
 try_from = "0.2"
 url = "1.2"
+
+[dev-dependencies]
+env_logger = "0.4.3"
+pretty_assertions = "0.3.4"
