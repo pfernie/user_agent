@@ -319,7 +319,7 @@ mod tests {
         fn domain_from(domain: &str, request_url: &str, is_some: bool) {
             let cookie_str = format!("cookie1=value1; Domain={}", domain);
             let raw_cookie = RawCookie::parse(cookie_str).unwrap();
-            let cookie = Cookie::new(raw_cookie, &test_utils::url(request_url));
+            let cookie = Cookie::new(&raw_cookie, &test_utils::url(request_url));
             assert_eq!(is_some, cookie.is_ok())
         }
         //        The user agent will reject cookies unless the Domain attribute
@@ -343,7 +343,7 @@ mod tests {
     fn httponly() {
         let c = RawCookie::parse("cookie1=value1; HttpOnly").unwrap();
         let url = Url::parse("ftp://example.com/foo/bar").unwrap();
-        let ua = Cookie::new(c, &url);
+        let ua = Cookie::new(&c, &url);
         assert!(ua.is_err(), "{:?}", ua);
     }
 

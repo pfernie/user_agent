@@ -3,10 +3,12 @@ authors = ["patrick.fernie@gmail.com"]
 name = "user_agent"
 version = "0.2.0"
 
+[dev-dependencies]
+env_logger = "0.4.3"
+
 [dependencies]
 cookie = { version = "0.8.1", features = ["percent-encode"] }
 derive-error-chain = "0.10.1"
-env_logger = "0.4.2"
 error-chain = "0.10.0"
 idna = "0.1"
 log = "0.3"

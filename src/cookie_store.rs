@@ -492,35 +492,35 @@ mod tests {
     fn insert_raw() {
         let mut store = CookieStore::default();
         inserted!(store.insert_raw(
-            RawCookie::parse("cookie1=value1").unwrap(),
+            &RawCookie::parse("cookie1=value1").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
         non_rel_scheme!(store.insert_raw(
-            RawCookie::parse("cookie1=value1").unwrap(),
+            &RawCookie::parse("cookie1=value1").unwrap(),
             &test_utils::url("data:nonrelativescheme"),
         ));
         non_http_scheme!(store.insert_raw(
-            RawCookie::parse("cookie1=value1; HttpOnly").unwrap(),
+            &RawCookie::parse("cookie1=value1; HttpOnly").unwrap(),
             &test_utils::url("ftp://example.com/"),
         ));
         expired_existing!(store.insert_raw(
-            RawCookie::parse("cookie1=value1; Max-Age=0").unwrap(),
+            &RawCookie::parse("cookie1=value1; Max-Age=0").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
         expired_err!(store.insert_raw(
-            RawCookie::parse("cookie1=value1; Max-Age=-1").unwrap(),
+            &RawCookie::parse("cookie1=value1; Max-Age=-1").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
         updated!(store.insert_raw(
-            RawCookie::parse("cookie1=value1").unwrap(),
+            &RawCookie::parse("cookie1=value1").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
         expired_existing!(store.insert_raw(
-            RawCookie::parse("cookie1=value1; Max-Age=-1").unwrap(),
+            &RawCookie::parse("cookie1=value1; Max-Age=-1").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
         domain_mismatch!(store.insert_raw(
-            RawCookie::parse("cookie1=value1; Domain=bar.example.com").unwrap(),
+            &RawCookie::parse("cookie1=value1; Domain=bar.example.com").unwrap(),
             &test_utils::url("http://example.com/foo/bar"),
         ));
     }

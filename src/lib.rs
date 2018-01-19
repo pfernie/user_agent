@@ -2,6 +2,7 @@ extern crate cookie as raw_cookie;
 #[macro_use]
 extern crate derive_error_chain;
 extern crate error_chain;
+#[cfg(test)]
 extern crate env_logger;
 extern crate idna;
 #[macro_use]

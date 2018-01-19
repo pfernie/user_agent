@@ -351,6 +351,7 @@ mod tests {
         }
     }
 
+    #[allow(unused_macros)]
     macro_rules! dump {
         ($e: expr, $i: ident) => ({
             use time::now_utc;
