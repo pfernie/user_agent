@@ -7,17 +7,13 @@ use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSes
 use url::Url;
 use utils::IntoUrl;
 use Error;
-use Result;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         if let Some(set_cookie) = self.headers().get::<SetCookie>() {
-            // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
-            // the
-            // correct version
             set_cookie
                 .iter()
-                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
+                .filter_map(|h_c| match RawCookie::parse(h_c.clone()) {
                     Ok(raw_cookie) => Some(raw_cookie),
                     Err(e) => {
                         debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
@@ -37,7 +33,6 @@ impl CarriesCookies for reqwest::RequestBuilder {
             debug!("no cookies to add to request");
             self
         } else {
-            // again, reqwest cookie version mismatches ours, so need to do some tricks
             let cookie_bytes = cookies
                 .iter()
                 .map(|rc| rc.encoded().to_string().into_bytes())
@@ -66,21 +61,9 @@ impl<'b> WithSession<'b> for ReqwestSession {
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
 
-    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> Result<Self::Response>,
-    {
-        unimplemented!()
-    }
+    define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> Result<Self::Response>,
-    {
-        unimplemented!()
-    }
+    define_req_with!(put_with, |url, &client| client.put(url.clone()));
 }
 
 impl ::std::ops::Deref for ReqwestSession {
