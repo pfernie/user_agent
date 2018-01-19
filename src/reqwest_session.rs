@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_gets() {
-        env_logger::init().unwrap();
+        env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());
         dump!("init", s);
         s.get_with("http://www.google.com", |mut req| {

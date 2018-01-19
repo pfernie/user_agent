@@ -34,7 +34,7 @@ pub use reqwest_session::ReqwestSession;
 mod utils;
 
 use idna::uts46::Errors as IdnaError;
-#[derive(Debug, error_chain)]
+#[derive(Debug, ErrorChain)]
 pub enum ErrorKind {
     Msg(String),
     /// IO Error
