@@ -158,7 +158,8 @@ mod serde {
 
     impl serde::Serialize for SerializableTm {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where S: serde::Serializer
+        where
+            S: serde::Serializer,
         {
             serializer.serialize_str(&format!("{}", self.0.rfc3339()))
         }
@@ -166,10 +167,10 @@ mod serde {
 
     impl<'a> serde::Deserialize<'a> for SerializableTm {
         fn deserialize<D>(deserializer: D) -> Result<SerializableTm, D::Error>
-            where D: Deserializer<'a>
+        where
+            D: Deserializer<'a>,
         {
-            let tm = deserializer.deserialize_str(TmVisitor)?;
-            Ok(SerializableTm::from(tm))
+            deserializer.deserialize_str(TmVisitor)
         }
     }
 
@@ -179,13 +180,16 @@ mod serde {
         type Value = SerializableTm;
 
         fn visit_str<E>(self, str_data: &str) -> Result<SerializableTm, E>
-            where E: serde::de::Error
+        where
+            E: serde::de::Error,
         {
             time::strptime(str_data, "%Y-%m-%dT%H:%M:%SZ")
                 .map(SerializableTm::from)
                 .map_err(|_| {
-                    E::custom(format!("could not parse '{}' as a UTC time in RFC3339 format",
-                                      str_data))
+                    E::custom(format!(
+                        "could not parse '{}' as a UTC time in RFC3339 format",
+                        str_data
+                    ))
                 })
         }
 
@@ -202,22 +206,28 @@ mod serde {
 
         fn encode_decode(ce: &CookieExpiration, exp_json: &str) {
             let encoded = serde_json::to_string(ce).unwrap();
-            assert!(exp_json == encoded,
-                    "expected: '{}'\n encoded: '{}'",
-                    exp_json,
-                    encoded);
+            assert!(
+                exp_json == encoded,
+                "expected: '{}'\n encoded: '{}'",
+                exp_json,
+                encoded
+            );
             let decoded: CookieExpiration = serde_json::from_str(&encoded).unwrap();
-            assert!(*ce == decoded,
-                    "expected: '{:?}'\n decoded: '{:?}'",
-                    ce,
-                    decoded);
+            assert!(
+                *ce == decoded,
+                "expected: '{:?}'\n decoded: '{:?}'",
+                ce,
+                decoded
+            );
         }
 
         #[test]
         fn serde() {
             let at_utc = time::strptime("2015-08-11T16:41:42Z", "%Y-%m-%dT%H:%M:%SZ").unwrap();
-            encode_decode(&CookieExpiration::from(at_utc),
-                          "{\"AtUtc\":\"2015-08-11T16:41:42Z\"}");
+            encode_decode(
+                &CookieExpiration::from(at_utc),
+                "{\"AtUtc\":\"2015-08-11T16:41:42Z\"}",
+            );
             encode_decode(&CookieExpiration::SessionEnd, "\"SessionEnd\"");
         }
     }

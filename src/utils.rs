@@ -46,18 +46,21 @@ pub mod test {
         Url::parse(url).unwrap()
     }
     #[inline]
-    pub fn make_cookie<'a>(cookie: &str,
-                           url_str: &str,
-                           expires: Option<Tm>,
-                           max_age: Option<u64>)
-                           -> Cookie<'a> {
-        Cookie::parse(format!("{}{}{}",
-                              cookie,
-                              expires.map_or(String::from(""),
-                              |e| format!("; Expires={}", e.rfc822())),
-                              max_age.map_or(String::from(""), |m| format!("; Max-Age={}", m))),
-                      &url(url_str))
-                .unwrap()
+    pub fn make_cookie<'a>(
+        cookie: &str,
+        url_str: &str,
+        expires: Option<Tm>,
+        max_age: Option<u64>,
+    ) -> Cookie<'a> {
+        Cookie::parse(
+            format!(
+                "{}{}{}",
+                cookie,
+                expires.map_or(String::from(""), |e| format!("; Expires={}", e.rfc822())),
+                max_age.map_or(String::from(""), |m| format!("; Max-Age={}", m))
+            ),
+            &url(url_str),
+        ).unwrap()
     }
     #[inline]
     pub fn in_days(days: i64) -> Tm {

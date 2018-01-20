@@ -6,22 +6,20 @@ use raw_cookie::Cookie as RawCookie;
 use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
 use utils::IntoUrl;
+use Error;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         if let Some(set_cookie) = self.headers().get::<SetCookie>() {
-            // reqwest is using cookie 0.2, we are on 0.4, so to_string()/parse() to get to
-            // the
-            // correct version
             set_cookie
                 .iter()
-                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
-                                Ok(raw_cookie) => Some(raw_cookie),
-                                Err(e) => {
-                    debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
-                    None
-                }
-                            })
+                .filter_map(|h_c| match RawCookie::parse(h_c.clone()) {
+                    Ok(raw_cookie) => Some(raw_cookie),
+                    Err(e) => {
+                        debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
+                        None
+                    }
+                })
                 .collect::<Vec<_>>()
         } else {
             vec![]
@@ -35,11 +33,10 @@ impl CarriesCookies for reqwest::RequestBuilder {
             debug!("no cookies to add to request");
             self
         } else {
-            // again, reqwest cookie version mismatches ours, so need to do some tricks
             let cookie_bytes = cookies
-                                    .iter()
-                                    .map(|rc| rc.encoded().to_string().into_bytes())
-                                    .collect::<Vec<_>>();
+                .iter()
+                .map(|rc| rc.encoded().to_string().into_bytes())
+                .collect::<Vec<_>>();
             match CookieHeader::parse_header(&cookie_bytes.into()) {
                 Ok(cookie_header) => {
                     debug!("setting Cookie Header for request: {:?}", cookie_header);
@@ -56,15 +53,6 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
-#[derive(Debug, error_chain)]
-pub enum ErrorKind {
-    Msg(String),
-    #[error_chain(foreign)]
-    Reqwest(reqwest::Error),
-    #[error_chain(foreign)]
-    UrlParse(::url::ParseError),
-}
-
 impl<'b> WithSession<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
@@ -73,19 +61,9 @@ impl<'b> WithSession<'b> for ReqwestSession {
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
 
-    fn delete_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
-        where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response>
-    {
-        unimplemented!()
-    }
+    define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    fn put_with<U, P>(&'b mut self, _: U, _: P) -> Result<Self::Response>
-        where U: IntoUrl,
-              P: FnOnce(Self::Request) -> Result<Self::Response>
-    {
-        unimplemented!()
-    }
+    define_req_with!(put_with, |url, &client| client.put(url.clone()));
 }
 
 impl ::std::ops::Deref for ReqwestSession {
@@ -125,29 +103,29 @@ mod tests {
 
     #[test]
     fn test_gets() {
-        env_logger::init().unwrap();
+        env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());
         dump!("init", s);
-        s.get_with("http://www.google.com",
-                      |mut req| req.send().map_err(super::Error::from))
-            .expect("www.google.com get_with failed");
+        s.get_with("http://www.google.com", |mut req| {
+            req.send().map_err(super::Error::from)
+        }).expect("www.google.com get_with failed");
         let c1 = s.iter_unexpired().count();
         assert!(c1 > 0);
-        s.get_with("http://www.google.com",
-                      |mut req| req.send().map_err(super::Error::from))
-            .expect("www.google.com get_with failed");
+        s.get_with("http://www.google.com", |mut req| {
+            req.send().map_err(super::Error::from)
+        }).expect("www.google.com get_with failed");
         assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
-        s.get_with("http://www.yahoo.com",
-                      |mut req| req.send().map_err(super::Error::from))
-            .expect("www.yahoo.com get_with failed");
+        s.get_with("http://www.yahoo.com", |mut req| {
+            req.send().map_err(super::Error::from)
+        }).expect("www.yahoo.com get_with failed");
         dump!("after yahoo", s);
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com",
-                      |mut req| req.send().map_err(super::Error::from))
-            .expect("www.msn.com get_with failed");
+        s.get_with("http://www.msn.com", |mut req| {
+            req.send().map_err(super::Error::from)
+        }).expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
         assert!(c3 > 0);

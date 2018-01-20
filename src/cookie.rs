@@ -36,7 +36,9 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::NonHttpScheme => "request-uri is not an http scheme but HttpOnly attribute set",
-            Error::NonRelativeScheme => "request-uri is not a relative scheme; cannot determine host",
+            Error::NonRelativeScheme => {
+                "request-uri is not a relative scheme; cannot determine host"
+            }
             Error::DomainMismatch => "request-uri does not domain-match the cookie",
             Error::Expired => "attempted to utilize an Expired Cookie",
             Error::Parse => "unable to parse string as cookie::Cookie",
@@ -69,8 +71,8 @@ pub type CookieResult<'a> = Result<Cookie<'a>, Error>;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Cookie<'a> {
     /// The parsed Set-Cookie data
-    #[serde(serialize_with="serde_raw_cookie::serialize")]
-    #[serde(deserialize_with="serde_raw_cookie::deserialize")]
+    #[serde(serialize_with = "serde_raw_cookie::serialize")]
+    #[serde(deserialize_with = "serde_raw_cookie::deserialize")]
     raw_cookie: RawCookie<'a>,
     /// The Path attribute from a Set-Cookie header or the default-path as
     /// determined from
@@ -97,18 +99,23 @@ mod serde_raw_cookie {
     use std::str::FromStr;
 
     pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         cookie.to_string().serialize(serializer)
     }
 
     pub fn deserialize<'a, D>(deserializer: D) -> Result<RawCookie<'static>, D::Error>
-        where D: Deserializer<'a>
+    where
+        D: Deserializer<'a>,
     {
         let cookie = String::deserialize(deserializer)?;
         match RawCookie::from_str(&cookie) {
             Ok(cookie) => Ok(cookie),
-            Err(_) => Err(D::Error::invalid_value(Unexpected::Str(&cookie), &"a cookie string")),
+            Err(_) => Err(D::Error::invalid_value(
+                Unexpected::Str(&cookie),
+                &"a cookie string",
+            )),
         }
     }
 }
@@ -117,8 +124,8 @@ impl<'a> Cookie<'a> {
     /// Whether this `Cookie` should be included for `request_url`
     pub fn matches(&self, request_url: &Url) -> bool {
         self.path.matches(request_url) && self.domain.matches(request_url) &&
-        (!self.raw_cookie.secure() || is_secure(request_url)) &&
-        (!self.raw_cookie.http_only() || is_http_scheme(request_url))
+            (!self.raw_cookie.secure() || is_secure(request_url)) &&
+            (!self.raw_cookie.http_only() || is_http_scheme(request_url))
     }
 
     /// Should this `Cookie` be persisted across sessions?
@@ -146,14 +153,15 @@ impl<'a> Cookie<'a> {
 
     /// Parses a new `user_agent::Cookie` from `cookie_str`.
     pub fn parse<S>(cookie_str: S, request_url: &Url) -> CookieResult<'a>
-        where S: Into<Cow<'a, str>>
+    where
+        S: Into<Cow<'a, str>>,
     {
-        Cookie::new(try!(RawCookie::parse(cookie_str)), request_url)
+        Cookie::new(&try!(RawCookie::parse(cookie_str)), request_url)
     }
 
     /// Create a new `user_agent::Cookie` from a `cookie::Cookie` (from the `cookie` crate)
     /// received from `request_url`.
-    pub fn new(raw_cookie: RawCookie<'a>, request_url: &Url) -> CookieResult<'a> {
+    pub fn new(raw_cookie: &RawCookie<'a>, request_url: &Url) -> CookieResult<'a> {
         if raw_cookie.http_only() && !is_http_scheme(request_url) {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
@@ -161,7 +169,7 @@ impl<'a> Cookie<'a> {
             try!(Err(Error::NonHttpScheme))
         }
 
-        let domain = match CookieDomain::try_from(&raw_cookie) {
+        let domain = match CookieDomain::try_from(raw_cookie) {
             // 6.   If the domain-attribute is non-empty:
             Ok(d @ CookieDomain::Suffix(_)) => {
                 if !d.matches(request_url) {
@@ -200,8 +208,8 @@ impl<'a> Cookie<'a> {
         };
 
         // These are all tracked via Cookie, clear from RawCookie
-        let mut builder = RawCookieBuilder::new(raw_cookie.name().to_owned(),
-                                                raw_cookie.value().to_owned());
+        let mut builder =
+            RawCookieBuilder::new(raw_cookie.name().to_owned(), raw_cookie.value().to_owned());
         builder = builder.secure(raw_cookie.secure());
         builder = builder.http_only(raw_cookie.http_only());
         if let Some(same_site) = raw_cookie.same_site() {
@@ -209,11 +217,11 @@ impl<'a> Cookie<'a> {
         }
 
         Ok(Cookie {
-               raw_cookie: builder.finish(),
-               path: path,
-               expires: expires,
-               domain: domain,
-           })
+            raw_cookie: builder.finish(),
+            path: path,
+            expires: expires,
+            domain: domain,
+        })
     }
 
     pub fn into_owned(self) -> Cookie<'static> {
@@ -235,8 +243,8 @@ impl<'a> Deref for Cookie<'a> {
 
 impl<'a> From<Cookie<'a>> for RawCookie<'a> {
     fn from(cookie: Cookie<'a>) -> RawCookie<'static> {
-        let mut builder = RawCookieBuilder::new(cookie.name().to_owned(),
-                                                cookie.value().to_owned());
+        let mut builder =
+            RawCookieBuilder::new(cookie.name().to_owned(), cookie.value().to_owned());
 
         // Max-Age is relative, will not have same meaning now, so only set `Expires`.
         match cookie.expires {
@@ -277,9 +285,11 @@ mod tests {
     #[test]
     fn no_domain() {
         let url = test_utils::url("http://example.com/foo/bar");
-        cmp_domain("cookie1=value1",
-                   "http://example.com/foo/bar",
-                   CookieDomain::host_only(&url).expect("unable to parse domain"));
+        cmp_domain(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            CookieDomain::host_only(&url).expect("unable to parse domain"),
+        );
     }
 
     // per RFC6265:
@@ -288,15 +298,19 @@ mod tests {
     #[test]
     fn empty_domain() {
         let url = test_utils::url("http://example.com/foo/bar");
-        cmp_domain("cookie1=value1; Domain=",
-                   "http://example.com/foo/bar",
-                   CookieDomain::host_only(&url).expect("unable to parse domain"));
+        cmp_domain(
+            "cookie1=value1; Domain=",
+            "http://example.com/foo/bar",
+            CookieDomain::host_only(&url).expect("unable to parse domain"),
+        );
     }
 
     #[test]
     fn mismatched_domain() {
-        let ua = Cookie::parse("cookie1=value1; Domain=notmydomain.com",
-                               &test_utils::url("http://example.com/foo/bar"));
+        let ua = Cookie::parse(
+            "cookie1=value1; Domain=notmydomain.com",
+            &test_utils::url("http://example.com/foo/bar"),
+        );
         assert!(ua.is_err(), "{:?}", ua);
     }
 
@@ -305,7 +319,7 @@ mod tests {
         fn domain_from(domain: &str, request_url: &str, is_some: bool) {
             let cookie_str = format!("cookie1=value1; Domain={}", domain);
             let raw_cookie = RawCookie::parse(cookie_str).unwrap();
-            let cookie = Cookie::new(raw_cookie, &test_utils::url(request_url));
+            let cookie = Cookie::new(&raw_cookie, &test_utils::url(request_url));
             assert_eq!(is_some, cookie.is_ok())
         }
         //        The user agent will reject cookies unless the Domain attribute
@@ -329,36 +343,44 @@ mod tests {
     fn httponly() {
         let c = RawCookie::parse("cookie1=value1; HttpOnly").unwrap();
         let url = Url::parse("ftp://example.com/foo/bar").unwrap();
-        let ua = Cookie::new(c, &url);
+        let ua = Cookie::new(&c, &url);
         assert!(ua.is_err(), "{:?}", ua);
     }
 
     #[test]
     fn identical_domain() {
-        cmp_domain("cookie1=value1; Domain=example.com",
-                   "http://example.com/foo/bar",
-                   CookieDomain::Suffix(String::from("example.com")));
+        cmp_domain(
+            "cookie1=value1; Domain=example.com",
+            "http://example.com/foo/bar",
+            CookieDomain::Suffix(String::from("example.com")),
+        );
     }
 
     #[test]
     fn identical_domain_leading_dot() {
-        cmp_domain("cookie1=value1; Domain=.example.com",
-                   "http://example.com/foo/bar",
-                   CookieDomain::Suffix(String::from("example.com")));
+        cmp_domain(
+            "cookie1=value1; Domain=.example.com",
+            "http://example.com/foo/bar",
+            CookieDomain::Suffix(String::from("example.com")),
+        );
     }
 
     #[test]
     fn identical_domain_two_leading_dots() {
-        cmp_domain("cookie1=value1; Domain=..example.com",
-                   "http://..example.com/foo/bar",
-                   CookieDomain::Suffix(String::from("example.com")));
+        cmp_domain(
+            "cookie1=value1; Domain=..example.com",
+            "http://..example.com/foo/bar",
+            CookieDomain::Suffix(String::from(".example.com")),
+        );
     }
 
     #[test]
     fn upper_case_domain() {
-        cmp_domain("cookie1=value1; Domain=EXAMPLE.com",
-                   "http://example.com/foo/bar",
-                   CookieDomain::Suffix(String::from("example.com")));
+        cmp_domain(
+            "cookie1=value1; Domain=EXAMPLE.com",
+            "http://example.com/foo/bar",
+            CookieDomain::Suffix(String::from("example.com")),
+        );
     }
 
     fn cmp_path(cookie: &str, url: &str, exp: &str) {
@@ -379,12 +401,16 @@ mod tests {
     #[test]
     fn empty_path() {
         // Path specified with empty value
-        cmp_path("cookie1=value1; Path=",
-                 "http://example.com/foo/bar/",
-                 "/foo/bar");
-        cmp_path("cookie1=value1; Path=",
-                 "http://example.com/foo/bar",
-                 "/foo");
+        cmp_path(
+            "cookie1=value1; Path=",
+            "http://example.com/foo/bar/",
+            "/foo/bar",
+        );
+        cmp_path(
+            "cookie1=value1; Path=",
+            "http://example.com/foo/bar",
+            "/foo",
+        );
         cmp_path("cookie1=value1; Path=", "http://example.com/foo", "/");
         cmp_path("cookie1=value1; Path=", "http://example.com/", "/");
         cmp_path("cookie1=value1; Path=", "http://example.com", "/");
@@ -393,12 +419,16 @@ mod tests {
     #[test]
     fn invalid_path() {
         // Invalid Path specified (first character not /)
-        cmp_path("cookie1=value1; Path=baz",
-                 "http://example.com/foo/bar/",
-                 "/foo/bar");
-        cmp_path("cookie1=value1; Path=baz",
-                 "http://example.com/foo/bar",
-                 "/foo");
+        cmp_path(
+            "cookie1=value1; Path=baz",
+            "http://example.com/foo/bar/",
+            "/foo/bar",
+        );
+        cmp_path(
+            "cookie1=value1; Path=baz",
+            "http://example.com/foo/bar",
+            "/foo",
+        );
         cmp_path("cookie1=value1; Path=baz", "http://example.com/foo", "/");
         cmp_path("cookie1=value1; Path=baz", "http://example.com/", "/");
         cmp_path("cookie1=value1; Path=baz", "http://example.com", "/");
@@ -407,14 +437,18 @@ mod tests {
     #[test]
     fn path() {
         // Path specified, single /
-        cmp_path("cookie1=value1; Path=/baz",
-                 "http://example.com/foo/bar/",
-                 "/baz");
+        cmp_path(
+            "cookie1=value1; Path=/baz",
+            "http://example.com/foo/bar/",
+            "/baz",
+        );
         // Path specified, multiple / (for valid attribute-value on path, take full
         // string)
-        cmp_path("cookie1=value1; Path=/baz/",
-                 "http://example.com/foo/bar/",
-                 "/baz/");
+        cmp_path(
+            "cookie1=value1; Path=/baz/",
+            "http://example.com/foo/bar/",
+            "/baz/",
+        );
     }
 
     // expiry-related tests
@@ -429,44 +463,54 @@ mod tests {
 
     #[test]
     fn max_age_bounds() {
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         Some(9223372036854776));
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            None,
+            Some(9223372036854776),
+        );
         assert!(match ua.expires {
-                    CookieExpiration::AtUtc(_) => true,
-                    _ => false,
-                });
+            CookieExpiration::AtUtc(_) => true,
+            _ => false,
+        });
     }
 
     #[test]
     fn max_age() {
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         Some(60));
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            None,
+            Some(60),
+        );
         assert!(!ua.is_expired());
         assert!(ua.expires_by(&in_minutes(2)));
     }
 
     #[test]
     fn expired() {
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         Some(0u64));
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            None,
+            Some(0u64),
+        );
         assert!(ua.is_expired());
         assert!(ua.expires_by(&in_days(-1)));
-        let ua = test_utils::make_cookie("cookie1=value1; Max-Age=0",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         None);
+        let ua = test_utils::make_cookie(
+            "cookie1=value1; Max-Age=0",
+            "http://example.com/foo/bar",
+            None,
+            None,
+        );
         assert!(ua.is_expired());
         assert!(ua.expires_by(&in_days(-1)));
-        let ua = test_utils::make_cookie("cookie1=value1; Max-Age=-1",
-                                         "http://example.com/foo/bar",
-                                         None,
-                                         None);
+        let ua = test_utils::make_cookie(
+            "cookie1=value1; Max-Age=-1",
+            "http://example.com/foo/bar",
+            None,
+            None,
+        );
         assert!(ua.is_expired());
         assert!(ua.expires_by(&in_days(-1)));
     }
@@ -476,9 +520,9 @@ mod tests {
         let ua =
             test_utils::make_cookie("cookie1=value1", "http://example.com/foo/bar", None, None);
         assert!(match ua.expires {
-                    CookieExpiration::SessionEnd => true,
-                    _ => false,
-                });
+            CookieExpiration::SessionEnd => true,
+            _ => false,
+        });
         assert!(!ua.is_expired());
         assert!(!ua.expires_by(&in_days(1)));
         assert!(!ua.expires_by(&in_days(-1)));
@@ -486,20 +530,24 @@ mod tests {
 
     #[test]
     fn expires_tmrw_at_utc() {
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         Some(in_days(1)),
-                                         None);
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some(in_days(1)),
+            None,
+        );
         assert!(!ua.is_expired());
         assert!(ua.expires_by(&in_days(2)));
     }
 
     #[test]
     fn expired_yest_at_utc() {
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         Some(in_days(-1)),
-                                         None);
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some(in_days(-1)),
+            None,
+        );
         assert!(ua.is_expired());
         assert!(!ua.expires_by(&in_days(-2)));
     }
@@ -509,15 +557,19 @@ mod tests {
         let ua =
             test_utils::make_cookie("cookie1=value1", "http://example.com/foo/bar", None, None);
         assert!(!ua.is_persistent()); // SessionEnd
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         Some(in_days(1)),
-                                         None);
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some(in_days(1)),
+            None,
+        );
         assert!(ua.is_persistent()); // AtUtc from Expires
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         Some(in_days(1)),
-                                         Some(60));
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some(in_days(1)),
+            Some(60),
+        );
         assert!(ua.is_persistent()); // AtUtc from Max-Age
     }
 
@@ -525,10 +577,12 @@ mod tests {
     fn max_age_overrides_expires() {
         // Expires indicates expiration yesterday, but Max-Age indicates expiry in 1
         // minute
-        let ua = test_utils::make_cookie("cookie1=value1",
-                                         "http://example.com/foo/bar",
-                                         Some(in_days(-1)),
-                                         Some(60));
+        let ua = test_utils::make_cookie(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some(in_days(-1)),
+            Some(60),
+        );
         assert!(!ua.is_expired());
         assert!(ua.expires_by(&in_minutes(2)));
     }
@@ -546,11 +600,13 @@ mod tests {
         fn do_match(exp: bool, cookie: &str, src_url: &str, request_url: Option<&str>) {
             let ua = test_utils::make_cookie(cookie, src_url, None, None);
             let request_url = request_url.unwrap_or(src_url);
-            assert!(exp == ua.matches(&Url::parse(request_url).unwrap()),
-                    "\n>> {:?}\nshould{}match\n>> {:?}\n",
-                    ua,
-                    if exp { " " } else { " NOT " },
-                    request_url);
+            assert!(
+                exp == ua.matches(&Url::parse(request_url).unwrap()),
+                "\n>> {:?}\nshould{}match\n>> {:?}\n",
+                ua,
+                if exp { " " } else { " NOT " },
+                request_url
+            );
         }
         fn is_match(cookie: &str, url: &str, request_url: Option<&str>) {
             do_match(true, cookie, url, request_url);
@@ -562,78 +618,116 @@ mod tests {
         // match: request-path & cookie-path (defaulted from request-uri) identical
         is_match("cookie1=value1", "http://example.com/foo/bar", None);
         // mismatch: request-path & cookie-path do not match
-        is_mismatch("cookie1=value1",
-                    "http://example.com/bus/baz/",
-                    Some("http://example.com/foo/bar"));
-        is_mismatch("cookie1=value1; Path=/bus/baz",
-                    "http://example.com/foo/bar",
-                    None);
+        is_mismatch(
+            "cookie1=value1",
+            "http://example.com/bus/baz/",
+            Some("http://example.com/foo/bar"),
+        );
+        is_mismatch(
+            "cookie1=value1; Path=/bus/baz",
+            "http://example.com/foo/bar",
+            None,
+        );
         // match: cookie-path a prefix of request-path and last character of
         // cookie-path is /
-        is_match("cookie1=value1",
-                 "http://example.com/foo/bar",
-                 Some("http://example.com/foo/bar"));
-        is_match("cookie1=value1; Path=/foo/",
-                 "http://example.com/foo/bar",
-                 None);
+        is_match(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some("http://example.com/foo/bar"),
+        );
+        is_match(
+            "cookie1=value1; Path=/foo/",
+            "http://example.com/foo/bar",
+            None,
+        );
         // mismatch: cookie-path a prefix of request-path but last character of
         // cookie-path is not /
         // and first character of request-path not included in cookie-path is not /
-        is_mismatch("cookie1=value1",
-                    "http://example.com/fo/",
-                    Some("http://example.com/foo/bar"));
-        is_mismatch("cookie1=value1; Path=/fo",
-                    "http://example.com/foo/bar",
-                    None);
+        is_mismatch(
+            "cookie1=value1",
+            "http://example.com/fo/",
+            Some("http://example.com/foo/bar"),
+        );
+        is_mismatch(
+            "cookie1=value1; Path=/fo",
+            "http://example.com/foo/bar",
+            None,
+        );
         // match: cookie-path a prefix of request-path and first character of
         // request-path
         // not included in the cookie-path is /
-        is_match("cookie1=value1",
-                 "http://example.com/foo/",
-                 Some("http://example.com/foo/bar"));
-        is_match("cookie1=value1; Path=/foo",
-                 "http://example.com/foo/bar",
-                 None);
+        is_match(
+            "cookie1=value1",
+            "http://example.com/foo/",
+            Some("http://example.com/foo/bar"),
+        );
+        is_match(
+            "cookie1=value1; Path=/foo",
+            "http://example.com/foo/bar",
+            None,
+        );
         // match: Path overridden to /, which matches all paths from the domain
-        is_match("cookie1=value1; Path=/",
-                 "http://example.com/foo/bar",
-                 Some("http://example.com/bus/baz"));
+        is_match(
+            "cookie1=value1; Path=/",
+            "http://example.com/foo/bar",
+            Some("http://example.com/bus/baz"),
+        );
         // mismatch: different domain
-        is_mismatch("cookie1=value1",
-                    "http://example.com/foo/",
-                    Some("http://notmydomain.com/foo/bar"));
-        is_mismatch("cookie1=value1; Domain=example.com",
-                    "http://foo.example.com/foo/",
-                    Some("http://notmydomain.com/foo/bar"));
+        is_mismatch(
+            "cookie1=value1",
+            "http://example.com/foo/",
+            Some("http://notmydomain.com/foo/bar"),
+        );
+        is_mismatch(
+            "cookie1=value1; Domain=example.com",
+            "http://foo.example.com/foo/",
+            Some("http://notmydomain.com/foo/bar"),
+        );
         // match: secure protocol
-        is_match("cookie1=value1; Secure",
-                 "http://example.com/foo/bar",
-                 Some("https://example.com/foo/bar"));
+        is_match(
+            "cookie1=value1; Secure",
+            "http://example.com/foo/bar",
+            Some("https://example.com/foo/bar"),
+        );
         // mismatch: non-secure protocol
-        is_mismatch("cookie1=value1; Secure",
-                    "http://example.com/foo/bar",
-                    Some("http://example.com/foo/bar"));
+        is_mismatch(
+            "cookie1=value1; Secure",
+            "http://example.com/foo/bar",
+            Some("http://example.com/foo/bar"),
+        );
         // match: no http restriction
-        is_match("cookie1=value1",
-                 "http://example.com/foo/bar",
-                 Some("ftp://example.com/foo/bar"));
+        is_match(
+            "cookie1=value1",
+            "http://example.com/foo/bar",
+            Some("ftp://example.com/foo/bar"),
+        );
         // match: http protocol
-        is_match("cookie1=value1; HttpOnly",
-                 "http://example.com/foo/bar",
-                 Some("http://example.com/foo/bar"));
-        is_match("cookie1=value1; HttpOnly",
-                 "http://example.com/foo/bar",
-                 Some("HTTP://example.com/foo/bar"));
-        is_match("cookie1=value1; HttpOnly",
-                 "http://example.com/foo/bar",
-                 Some("https://example.com/foo/bar"));
+        is_match(
+            "cookie1=value1; HttpOnly",
+            "http://example.com/foo/bar",
+            Some("http://example.com/foo/bar"),
+        );
+        is_match(
+            "cookie1=value1; HttpOnly",
+            "http://example.com/foo/bar",
+            Some("HTTP://example.com/foo/bar"),
+        );
+        is_match(
+            "cookie1=value1; HttpOnly",
+            "http://example.com/foo/bar",
+            Some("https://example.com/foo/bar"),
+        );
         // mismatch: http requried
-        is_mismatch("cookie1=value1; HttpOnly",
-                    "http://example.com/foo/bar",
-                    Some("ftp://example.com/foo/bar"));
-        is_mismatch("cookie1=value1; HttpOnly",
-                    "http://example.com/foo/bar",
-                    Some("data:nonrelativescheme"));
+        is_mismatch(
+            "cookie1=value1; HttpOnly",
+            "http://example.com/foo/bar",
+            Some("ftp://example.com/foo/bar"),
+        );
+        is_mismatch(
+            "cookie1=value1; HttpOnly",
+            "http://example.com/foo/bar",
+            Some("data:nonrelativescheme"),
+        );
     }
 }
 
@@ -649,113 +743,140 @@ mod serde {
 
         fn encode_decode(c: &Cookie, expected: serde_json::Value) {
             let encoded = serde_json::to_value(c).unwrap();
-            assert_eq!(expected,
-                       encoded,
-                       "\nexpected: '{}'\n encoded: '{}'",
-                       expected.to_string(),
-                       encoded.to_string());
+            assert_eq!(
+                expected,
+                encoded,
+                "\nexpected: '{}'\n encoded: '{}'",
+                expected.to_string(),
+                encoded.to_string()
+            );
             let decoded: Cookie = serde_json::from_value(encoded).unwrap();
-            assert_eq!(*c,
-                       decoded,
-                       "\nexpected: '{}'\n decoded: '{}'",
-                       c.to_string(),
-                       decoded.to_string());
+            assert_eq!(
+                *c,
+                decoded,
+                "\nexpected: '{}'\n decoded: '{}'",
+                c.to_string(),
+                decoded.to_string()
+            );
         }
 
         #[test]
         fn serde() {
-            encode_decode(&test_utils::make_cookie("cookie1=value1",
-                                                   "http://example.com/foo/bar",
-                                                   None,
-                                                   None),
-                          json!({
+            encode_decode(
+                &test_utils::make_cookie("cookie1=value1", "http://example.com/foo/bar", None, None),
+                json!({
                     "raw_cookie": "cookie1=value1",
                     "path": ["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": "SessionEnd"
-                }));
+                }),
+            );
 
-            encode_decode(&test_utils::make_cookie("cookie2=value2; Domain=example.com",
-                                                   "http://foo.example.com/foo/bar",
-                                                   None,
-                                                   None),
-                          json!({
+            encode_decode(
+                &test_utils::make_cookie(
+                    "cookie2=value2; Domain=example.com",
+                    "http://foo.example.com/foo/bar",
+                    None,
+                    None,
+                ),
+                json!({
                     "raw_cookie": "cookie2=value2",
                     "path": ["/foo", false],
                     "domain": { "Suffix": "example.com" },
                     "expires": "SessionEnd"
-                }));
+                }),
+            );
 
-            encode_decode(&test_utils::make_cookie("cookie3=value3; Path=/foo/bar",
-                                                   "http://foo.example.com/foo",
-                                                   None,
-                                                   None),
-                          json!({
+            encode_decode(
+                &test_utils::make_cookie(
+                    "cookie3=value3; Path=/foo/bar",
+                    "http://foo.example.com/foo",
+                    None,
+                    None,
+                ),
+                json!({
                     "raw_cookie": "cookie3=value3",
                     "path": ["/foo/bar", true],
                     "domain": { "HostOnly": "foo.example.com" },
                     "expires": "SessionEnd",
-                }));
+                }),
+            );
 
             let at_utc = time::strptime("2015-08-11T16:41:42Z", "%Y-%m-%dT%H:%M:%SZ").unwrap();
-            encode_decode(&test_utils::make_cookie("cookie4=value4",
-                                                   "http://example.com/foo/bar",
-                                                   Some(at_utc),
-                                                   None),
-                          json!({
+            encode_decode(
+                &test_utils::make_cookie(
+                    "cookie4=value4",
+                    "http://example.com/foo/bar",
+                    Some(at_utc),
+                    None,
+                ),
+                json!({
                     "raw_cookie": "cookie4=value4",
                     "path": ["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": at_utc.rfc3339().to_string() },
-                }));
+                }),
+            );
 
-            let expires = test_utils::make_cookie("cookie5=value5",
-                                                  "http://example.com/foo/bar",
-                                                  Some(in_minutes(10)),
-                                                  None);
+            let expires = test_utils::make_cookie(
+                "cookie5=value5",
+                "http://example.com/foo/bar",
+                Some(in_minutes(10)),
+                None,
+            );
             let utc_tm = match expires.expires {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
 
-            encode_decode(&expires,
-                          json!({
+            encode_decode(
+                &expires,
+                json!({
                     "raw_cookie": "cookie5=value5",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                }));
-            let max_age = test_utils::make_cookie("cookie6=value6",
-                                                  "http://example.com/foo/bar",
-                                                  Some(at_utc),
-                                                  Some(10));
+                }),
+            );
+            let max_age = test_utils::make_cookie(
+                "cookie6=value6",
+                "http://example.com/foo/bar",
+                Some(at_utc),
+                Some(10),
+            );
             let utc_tm = match max_age.expires {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(&max_age,
-                          json!({
+            encode_decode(
+                &max_age,
+                json!({
                     "raw_cookie": "cookie6=value6",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                }));
+                }),
+            );
 
-            let max_age = test_utils::make_cookie("cookie7=value7",
-                                                  "http://example.com/foo/bar",
-                                                  None,
-                                                  Some(10));
+            let max_age = test_utils::make_cookie(
+                "cookie7=value7",
+                "http://example.com/foo/bar",
+                None,
+                Some(10),
+            );
             let utc_tm = match max_age.expires {
                 CookieExpiration::AtUtc(ref utc_tm) => utc_tm,
                 CookieExpiration::SessionEnd => unreachable!(),
             };
-            encode_decode(&max_age,
-                          json!({
+            encode_decode(
+                &max_age,
+                json!({
                     "raw_cookie": "cookie7=value7",
                     "path":["/foo", false],
                     "domain": { "HostOnly": "example.com" },
                     "expires": { "AtUtc": utc_tm.rfc3339().to_string() },
-                }));
+                }),
+            );
         }
     }
 }

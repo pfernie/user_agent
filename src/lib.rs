@@ -2,6 +2,7 @@ extern crate cookie as raw_cookie;
 #[macro_use]
 extern crate derive_error_chain;
 extern crate error_chain;
+#[cfg(test)]
 extern crate env_logger;
 extern crate idna;
 #[macro_use]
@@ -33,7 +34,7 @@ pub use reqwest_session::ReqwestSession;
 mod utils;
 
 use idna::uts46::Errors as IdnaError;
-#[derive(Debug, error_chain)]
+#[derive(Debug, ErrorChain)]
 pub enum ErrorKind {
     Msg(String),
     /// IO Error
@@ -51,6 +52,9 @@ pub enum ErrorKind {
     /// URL Parse Error
     #[error_chain(foreign)]
     UrlParse(url::ParseError),
+    /// Error from reqwest
+    #[error_chain(foreign)]
+    Reqwest(reqwest::Error),
 }
 
 impl From<IdnaError> for Error {
