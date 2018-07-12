@@ -4,8 +4,7 @@ name = "user_agent"
 version = "0.2.2"
 
 [dependencies]
-derive-error-chain = "0.11.0"
-error-chain = "0.11.0"
+error-chain = "0.12.0"
 idna = "0.1.4"
 log = "0.4.1"
 publicsuffix = "1.4.1"
