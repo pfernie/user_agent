@@ -6,7 +6,6 @@ use raw_cookie::Cookie as RawCookie;
 use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
 use utils::IntoUrl;
-use Error;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
@@ -56,7 +55,7 @@ pub type ReqwestSession = Session<reqwest::Client>;
 impl<'b> WithSession<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
-    type SendError = Error;
+    type SendError = super::ReqwestSessionError;
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
@@ -103,28 +102,30 @@ mod tests {
 
     #[test]
     fn test_gets() {
+        use super::super::ReqwestSessionError;
+
         env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());
         dump!("init", s);
-        s.get_with("http://www.google.com", |mut req| {
-            req.send().map_err(super::Error::from)
+        s.get_with("http://www.google.com", |req| {
+            req.send().map_err(ReqwestSessionError::from)
         }).expect("www.google.com get_with failed");
         let c1 = s.iter_unexpired().count();
         assert!(c1 > 0);
-        s.get_with("http://www.google.com", |mut req| {
-            req.send().map_err(super::Error::from)
+        s.get_with("http://www.google.com", |req| {
+            req.send().map_err(ReqwestSessionError::from)
         }).expect("www.google.com get_with failed");
         assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
-        s.get_with("http://www.yahoo.com", |mut req| {
-            req.send().map_err(super::Error::from)
+        s.get_with("http://www.yahoo.com", |req| {
+            req.send().map_err(ReqwestSessionError::from)
         }).expect("www.yahoo.com get_with failed");
         dump!("after yahoo", s);
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com", |mut req| {
-            req.send().map_err(super::Error::from)
+        s.get_with("http://www.msn.com", |req| {
+            req.send().map_err(ReqwestSessionError::from)
         }).expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();

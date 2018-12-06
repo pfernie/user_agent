@@ -1,5 +1,4 @@
 use CookieError;
-use Error;
 use cookie::Cookie;
 use cookie_domain::{CookieDomain, is_match as domain_match};
 use cookie_path::is_match as path_match;
@@ -21,7 +20,7 @@ pub enum StoreAction {
     UpdatedExisting,
 }
 
-pub type StoreResult<T> = Result<T, Error>;
+pub type StoreResult<T> = Result<T, failure::Error>;
 pub type InsertResult = Result<StoreAction, CookieError>;
 #[derive(Debug, Default)]
 pub struct CookieStore {
@@ -281,7 +280,7 @@ impl CookieStore {
     where
         W: Write,
         F: Fn(&Cookie<'static>) -> Result<String, E>,
-        Error: From<E>,
+        failure::Error: From<E>,
     {
         for cookie in self.iter_unexpired().filter_map(|c| if c.is_persistent() {
             Some(cookie_to_string(c))
@@ -306,7 +305,7 @@ impl CookieStore {
     where
         R: BufRead,
         F: Fn(&str) -> Result<Cookie<'static>, E>,
-        Error: From<E>,
+        failure::Error: From<E>,
     {
         let mut cookies = HashMap::new();
         for line in reader.lines() {
