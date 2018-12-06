@@ -1,18 +1,18 @@
 use cookie_store::CookieStore;
-use reqwest;
-use reqwest::header::{Header, SetCookie};
-use reqwest::header::Cookie as CookieHeader;
 use raw_cookie::Cookie as RawCookie;
+use reqwest;
+use reqwest::header::{COOKIE, SET_COOKIE};
 use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
 use utils::IntoUrl;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
-        if let Some(set_cookie) = self.headers().get::<SetCookie>() {
+        if let Some(set_cookie) = self.headers().get(SET_COOKIE) {
             set_cookie
+               .to_str()
                 .iter()
-                .filter_map(|h_c| match RawCookie::parse(h_c.clone()) {
+               .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
                     Ok(raw_cookie) => Some(raw_cookie),
                     Err(e) => {
                         debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
@@ -27,26 +27,19 @@ impl HasSetCookie for reqwest::Response {
 }
 
 impl CarriesCookies for reqwest::RequestBuilder {
-    fn add_cookies(mut self, cookies: Vec<&RawCookie<'static>>) -> Self {
+    fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
         if cookies.is_empty() {
             debug!("no cookies to add to request");
             self
         } else {
-            let cookie_bytes = cookies
-                .iter()
-                .map(|rc| rc.encoded().to_string().into_bytes())
-                .collect::<Vec<_>>();
-            match CookieHeader::parse_header(&cookie_bytes.into()) {
-                Ok(cookie_header) => {
-                    debug!("setting Cookie Header for request: {:?}", cookie_header);
-                    self.header(cookie_header);
-                    self
-                }
-                Err(e) => {
-                    debug!("error parsing cookie set for request: {}", e);
-                    self
-                }
+            let cookies = cookies
+               .iter()
+               .map(|rc| rc.encoded().to_string());
+            let mut out = self;
+            for cookie in cookies {
+                out = out.header(COOKIE, cookie);
             }
+            out
         }
     }
 }
