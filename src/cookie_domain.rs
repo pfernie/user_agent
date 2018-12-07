@@ -7,7 +7,6 @@ use try_from::TryFrom;
 use url::{Host, Url};
 
 use CookieError;
-use Error;
 use utils::is_host_name;
 
 pub fn is_match(domain: &str, request_url: &Url) -> bool {
@@ -123,10 +122,11 @@ impl CookieDomain {
 /// Construct a `CookieDomain::Suffix` from a string, stripping a single leading '.' if present.
 /// If the source string is empty, returns the `CookieDomain::Empty` variant.
 impl<'a> TryFrom<&'a str> for CookieDomain {
-    type Err = Error;
+    type Err = failure::Error;
     fn try_from(value: &str) -> Result<CookieDomain, Self::Err> {
         idna::domain_to_ascii(value.trim())
-            .map_err(Error::from)
+            .map_err(super::IdnaErrors::from)
+            .map_err(failure::Error::from)
             .map(|domain| if domain.is_empty() || "." == domain {
                 CookieDomain::Empty
             } else if domain.starts_with('.') {
@@ -144,11 +144,12 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
 /// performing this step twice, the `From<&cookie::Cookie>` impl should be used,
 /// instead of passing `cookie.domain` to the `From<&str>` impl.
 impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
-    type Err = Error;
+    type Err = failure::Error;
     fn try_from(cookie: &'a RawCookie<'c>) -> Result<CookieDomain, Self::Err> {
         if let Some(domain) = cookie.domain() {
             idna::domain_to_ascii(domain.trim())
-                .map_err(Error::from)
+                .map_err(super::IdnaErrors::from)
+                .map_err(failure::Error::from)
                 .map(|domain| if domain.is_empty() {
                     CookieDomain::Empty
                 } else {

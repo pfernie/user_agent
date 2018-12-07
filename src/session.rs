@@ -1,4 +1,3 @@
-use Error;
 use cookie::Cookie;
 use cookie_store::{CookieStore, StoreResult};
 use raw_cookie::Cookie as RawCookie;
@@ -22,7 +21,7 @@ pub trait HasSetCookie {
 pub trait WithSession<'b> {
     type Request: CarriesCookies;
     type Response: HasSetCookie;
-    type SendError: ::std::error::Error + From<ParseUrlError>;
+    type SendError: failure::Fail + From<ParseUrlError>;
 
     fn get_with<U, P>(
         &'b mut self,
@@ -150,7 +149,7 @@ impl<C> Session<C> {
     where
         R: BufRead,
         F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
-        Error: From<E>,
+        failure::Error: From<E>,
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
         Ok(Session {
@@ -171,7 +170,7 @@ impl<C> Session<C> {
     where
         W: Write,
         F: Fn(&Cookie) -> ::std::result::Result<String, E>,
-        Error: From<E>,
+        failure::Error: From<E>,
     {
         self.store.save(writer, cookie_to_string)
     }

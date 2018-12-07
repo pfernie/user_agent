@@ -1,8 +1,9 @@
 extern crate cookie as raw_cookie;
-#[macro_use]
-extern crate error_chain;
 #[cfg(test)]
 extern crate env_logger;
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 extern crate idna;
 #[macro_use]
 extern crate log;
@@ -32,23 +33,34 @@ pub mod reqwest_session;
 pub use reqwest_session::ReqwestSession;
 mod utils;
 
-use idna::uts46::Errors as IdnaError;
-error_chain!{
-    foreign_links {
-        Io(std::io::Error);
-        Json(serde_json::error::Error);
-        StrParse(std::string::FromUtf8Error);
-        UrlParse(url::ParseError);
-        Reqwest(reqwest::Error);
-    }
+#[derive(Debug, Fail)]
+#[fail(display = "IDNA errors: {:#?}", _0)]
+pub struct IdnaErrors(idna::uts46::Errors);
 
-    errors {
-        Idna(t: idna::uts46::Errors) {}
-    }
+impl From<idna::uts46::Errors> for IdnaErrors {
+	fn from(e: idna::uts46::Errors) -> Self {
+		IdnaErrors(e)
+	}
 }
 
-impl From<IdnaError> for Error {
-    fn from(es: IdnaError) -> Error {
-        ErrorKind::Idna(es).into()
-    }
+#[derive(Debug, Fail)]
+pub enum ReqwestSessionError {
+	#[fail(display = "URL parse error: {}", _0)]
+	ParseUrlError(url::ParseError),
+	#[fail(display = "Reqwest error: {}", _0)]
+	ReqwestError(reqwest::Error),
 }
+
+impl From<url::ParseError> for ReqwestSessionError {
+	fn from(e: url::ParseError) -> Self {
+		ReqwestSessionError::ParseUrlError(e)
+	}
+}
+
+impl From<reqwest::Error> for ReqwestSessionError {
+	fn from(e: reqwest::Error) -> Self {
+		ReqwestSessionError::ReqwestError(e)
+	}
+}
+
+pub type Result<T> = std::result::Result<T, failure::Error>;

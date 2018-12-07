@@ -1,14 +1,15 @@
 [package]
 authors = ["patrick.fernie@gmail.com"]
 name = "user_agent"
-version = "0.2.2"
+version = "0.3.0"
 
 [dependencies]
-error-chain = "0.12.0"
+failure = "0.1"
+failure_derive = "0.1"
 idna = "0.1.4"
 log = "0.4.1"
 publicsuffix = "1.4.1"
-reqwest = "0.8.2"
+reqwest = "0.9"
 serde = "1.0.27"
 serde_derive = "1.0.27"
 serde_json = "1.0.9"
