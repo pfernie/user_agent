@@ -157,7 +157,7 @@ impl<'a> Cookie<'a> {
     where
         S: Into<Cow<'a, str>>,
     {
-        Cookie::new(&try!(RawCookie::parse(cookie_str)), request_url)
+        Cookie::new(&RawCookie::parse(cookie_str)?, request_url)
     }
 
     /// Create a new `user_agent::Cookie` from a `cookie::Cookie` (from the `cookie` crate)
@@ -167,7 +167,7 @@ impl<'a> Cookie<'a> {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
             // cookie entirely.
-            try!(Err(Error::NonHttpScheme))
+            return Err(Error::NonHttpScheme);
         }
 
         let domain = match CookieDomain::try_from(raw_cookie) {

@@ -72,12 +72,12 @@ macro_rules! define_req_with {
             where U: IntoUrl,
                   P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
                   {
-                      let $u: Url = try!($u.into_url());
+                      let $u: Url = $u.into_url()?;
                       let res = {
                           let $client = &self.client;
                           debug!("using client {:p}", $client);
                           let req = self.store.apply_cookies($mk_req, &$u);
-                          try!(prepare_and_send(req))
+                          prepare_and_send(req)?
                       };
                       self.store.take_cookies(&res, &$u);
                       Ok(res)
@@ -88,12 +88,12 @@ macro_rules! define_req_with {
             where U: IntoUrl,
                   P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
                   {
-                      let $u: Url = try!($u.into_url());
+                      let $u: Url = $u.into_url()?;
                       let res = {
                           let $client = &mut self.client;
                           debug!("using client {:p}", $client);
                           let req = self.store.apply_cookies($mk_req, &$u);
-                          try!(prepare_and_send(req))
+                          prepare_and_send(req)?
                       };
                       self.store.take_cookies(&res, &$u);
                       Ok(res)
@@ -151,12 +151,12 @@ impl<C> Session<C> {
         F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
         failure::Error: From<E>,
     {
-        let store = try!(CookieStore::load(reader, cookie_from_str));
+        let store = CookieStore::load(reader, cookie_from_str)?;
         Ok(Session { client, store })
     }
 
     pub fn load_json<R: BufRead>(client: C, reader: R) -> StoreResult<Session<C>> {
-        let store = try!(CookieStore::load_json(reader));
+        let store = CookieStore::load_json(reader)?;
         Ok(Session { client, store })
     }
 

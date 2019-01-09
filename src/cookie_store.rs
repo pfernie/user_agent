@@ -295,7 +295,7 @@ impl CookieStore {
                 None
             }
         }) {
-            try!(writeln!(writer, "{}", try!(cookie)));
+            writeln!(writer, "{}", cookie?)?;
         }
         Ok(())
     }
@@ -316,7 +316,7 @@ impl CookieStore {
     {
         let mut cookies = HashMap::new();
         for line in reader.lines() {
-            let cookie: Cookie = try!(cookie_from_str(&try!(line)[..]));
+            let cookie: Cookie = cookie_from_str(&line?[..])?;
             if !cookie.is_expired() {
                 cookies
                     .entry(String::from(&cookie.domain))
