@@ -6,8 +6,8 @@ use raw_cookie::Cookie as RawCookie;
 use try_from::TryFrom;
 use url::{Host, Url};
 
-use CookieError;
 use utils::is_host_name;
+use CookieError;
 
 pub fn is_match(domain: &str, request_url: &Url) -> bool {
     CookieDomain::try_from(domain)
@@ -67,9 +67,10 @@ impl CookieDomain {
             match *self {
                 CookieDomain::HostOnly(ref host) => host == url_host,
                 CookieDomain::Suffix(ref suffix) => {
-                    suffix == url_host ||
-                        (is_host_name(url_host) && url_host.ends_with(suffix) &&
-                             url_host[(url_host.len() - suffix.len() - 1)..].starts_with('.'))
+                    suffix == url_host
+                        || (is_host_name(url_host)
+                            && url_host.ends_with(suffix)
+                            && url_host[(url_host.len() - suffix.len() - 1)..].starts_with('.'))
                 }
                 CookieDomain::NotPresent | CookieDomain::Empty => false, // nothing can match the Empty case
             }
@@ -112,8 +113,9 @@ impl CookieDomain {
     /// `None` shall be returned;
     pub fn as_cow(&self) -> Option<std::borrow::Cow<str>> {
         match *self {
-            CookieDomain::HostOnly(ref s) |
-            CookieDomain::Suffix(ref s) => Some(std::borrow::Cow::Borrowed(s)),
+            CookieDomain::HostOnly(ref s) | CookieDomain::Suffix(ref s) => {
+                Some(std::borrow::Cow::Borrowed(s))
+            }
             CookieDomain::Empty | CookieDomain::NotPresent => None,
         }
     }
@@ -127,12 +129,14 @@ impl<'a> TryFrom<&'a str> for CookieDomain {
         idna::domain_to_ascii(value.trim())
             .map_err(super::IdnaErrors::from)
             .map_err(failure::Error::from)
-            .map(|domain| if domain.is_empty() || "." == domain {
-                CookieDomain::Empty
-            } else if domain.starts_with('.') {
-                CookieDomain::Suffix(String::from(&domain[1..]))
-            } else {
-                CookieDomain::Suffix(domain)
+            .map(|domain| {
+                if domain.is_empty() || "." == domain {
+                    CookieDomain::Empty
+                } else if domain.starts_with('.') {
+                    CookieDomain::Suffix(String::from(&domain[1..]))
+                } else {
+                    CookieDomain::Suffix(domain)
+                }
             })
     }
 }
@@ -150,10 +154,12 @@ impl<'a, 'c> TryFrom<&'a RawCookie<'c>> for CookieDomain {
             idna::domain_to_ascii(domain.trim())
                 .map_err(super::IdnaErrors::from)
                 .map_err(failure::Error::from)
-                .map(|domain| if domain.is_empty() {
-                    CookieDomain::Empty
-                } else {
-                    CookieDomain::Suffix(domain)
+                .map(|domain| {
+                    if domain.is_empty() {
+                        CookieDomain::Empty
+                    } else {
+                        CookieDomain::Suffix(domain)
+                    }
                 })
         } else {
             Ok(CookieDomain::NotPresent)

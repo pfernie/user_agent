@@ -19,8 +19,8 @@ extern crate try_from;
 extern crate url;
 
 mod cookie;
-pub use cookie::{Cookie, CookieResult};
 pub use cookie::Error as CookieError;
+pub use cookie::{Cookie, CookieResult};
 mod cookie_domain;
 mod cookie_expiration;
 mod cookie_path;
@@ -38,29 +38,29 @@ mod utils;
 pub struct IdnaErrors(idna::uts46::Errors);
 
 impl From<idna::uts46::Errors> for IdnaErrors {
-	fn from(e: idna::uts46::Errors) -> Self {
-		IdnaErrors(e)
-	}
+    fn from(e: idna::uts46::Errors) -> Self {
+        IdnaErrors(e)
+    }
 }
 
 #[derive(Debug, Fail)]
 pub enum ReqwestSessionError {
-	#[fail(display = "URL parse error: {}", _0)]
-	ParseUrlError(url::ParseError),
-	#[fail(display = "Reqwest error: {}", _0)]
-	ReqwestError(reqwest::Error),
+    #[fail(display = "URL parse error: {}", _0)]
+    ParseUrlError(url::ParseError),
+    #[fail(display = "Reqwest error: {}", _0)]
+    ReqwestError(reqwest::Error),
 }
 
 impl From<url::ParseError> for ReqwestSessionError {
-	fn from(e: url::ParseError) -> Self {
-		ReqwestSessionError::ParseUrlError(e)
-	}
+    fn from(e: url::ParseError) -> Self {
+        ReqwestSessionError::ParseUrlError(e)
+    }
 }
 
 impl From<reqwest::Error> for ReqwestSessionError {
-	fn from(e: reqwest::Error) -> Self {
-		ReqwestSessionError::ReqwestError(e)
-	}
+    fn from(e: reqwest::Error) -> Self {
+        ReqwestSessionError::ReqwestError(e)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, failure::Error>;

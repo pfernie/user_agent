@@ -182,10 +182,10 @@ impl<C> Session<C> {
 
 #[cfg(test)]
 mod tests {
+    use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
     use cookie_store::CookieStore;
     use raw_cookie::Cookie as RawCookie;
     use std::io::{self, Read};
-    use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
     use url::ParseError as ParseUrlError;
     use url::Url;
     use utils::IntoUrl;
@@ -352,61 +352,89 @@ mod tests {
 
     #[allow(unused_macros)]
     macro_rules! dump {
-        ($e: expr, $i: ident) => ({
-            use time::now_utc;
+        ($e: expr, $i: ident) => {{
             use serde_json;
+            use time::now_utc;
             println!("");
             println!("==== {}: {} ====", $e, now_utc().rfc3339());
             for c in $i.iter_any() {
-                println!("{} {}", if c.is_expired() { "XXXXX" } else if c.is_persistent() { "PPPPP" }else { "     " }, serde_json::to_string(c).unwrap());
+                println!(
+                    "{} {}",
+                    if c.is_expired() {
+                        "XXXXX"
+                    } else if c.is_persistent() {
+                        "PPPPP"
+                    } else {
+                        "     "
+                    },
+                    serde_json::to_string(c).unwrap()
+                );
                 println!("----------------");
             }
             println!("================");
-        })
+        }};
     }
 
     macro_rules! is_in_vec {
-        ($i: ident, $e: expr) => (assert!($i.iter().any(|c| c.name() == $e));)
+        ($i: ident, $e: expr) => {
+            assert!($i.iter().any(|c| c.name() == $e));
+        };
     }
 
     macro_rules! value_in_vec {
-        ($i: ident, $e: expr, $v: expr) => (assert!($i.iter().find(|c| c.name() == $e).unwrap().value() == $v);)
+        ($i: ident, $e: expr, $v: expr) => {
+            assert!($i.iter().find(|c| c.name() == $e).unwrap().value() == $v);
+        };
     }
 
     macro_rules! not_in_vec {
-        ($i: ident, $e: expr) => (assert!(!$i.iter().any(|c| c.name() == $e));)
+        ($i: ident, $e: expr) => {
+            assert!(!$i.iter().any(|c| c.name() == $e));
+        };
     }
 
     macro_rules! has_sess {
-        ($store: ident, $d: expr, $p: expr, $n: expr) => (assert!(!$store.get($d, $p, $n).unwrap().is_persistent());)
+        ($store: ident, $d: expr, $p: expr, $n: expr) => {
+            assert!(!$store.get($d, $p, $n).unwrap().is_persistent());
+        };
     }
 
     macro_rules! has_pers {
-        ($store: ident, $d: expr, $p: expr, $n: expr) => (assert!($store.get($d, $p, $n).unwrap().is_persistent());)
+        ($store: ident, $d: expr, $p: expr, $n: expr) => {
+            assert!($store.get($d, $p, $n).unwrap().is_persistent());
+        };
     }
 
     macro_rules! has_expired {
-        ($store: ident, $d: expr, $p: expr, $n: expr) => (assert!($store.contains_any($d, $p, $n) && !$store.contains($d, $p, $n));)
+        ($store: ident, $d: expr, $p: expr, $n: expr) => {
+            assert!($store.contains_any($d, $p, $n) && !$store.contains($d, $p, $n));
+        };
     }
 
     macro_rules! has_value {
-        ($store: ident, $d: expr, $p: expr, $n: expr, $v: expr) => (assert_eq!($store.get($d, $p, $n).unwrap().value(), $v);)
+        ($store: ident, $d: expr, $p: expr, $n: expr, $v: expr) => {
+            assert_eq!($store.get($d, $p, $n).unwrap().value(), $v);
+        };
     }
 
     macro_rules! not_has {
-        ($store: ident, $n: expr) => (assert_eq!($store.iter_any().filter(|c| c.name() == $n).count(), 0);)
+        ($store: ident, $n: expr) => {
+            assert_eq!($store.iter_any().filter(|c| c.name() == $n).count(), 0);
+        };
     }
 
     macro_rules! load_session {
-        ($s: ident, $c: ident, $sd: ident) => (let mut $s = Session::load_json($c, &$sd[..]).unwrap();)
+        ($s: ident, $c: ident, $sd: ident) => {
+            let mut $s = Session::load_json($c, &$sd[..]).unwrap();
+        };
     }
 
     macro_rules! save_session {
-        ($s: ident) => ({
+        ($s: ident) => {{
             let mut output = vec![];
             $s.save_json(&mut output).unwrap();
             output
-        })
+        }};
     }
 
     impl ::std::ops::Deref for TestSession {
@@ -436,11 +464,13 @@ mod tests {
             s.parse(
                 "foo_domain=zzz",
                 &Url::parse("http://foo.example.com").unwrap(),
-            ).unwrap(); // should not be included in our www.example.com request
+            )
+            .unwrap(); // should not be included in our www.example.com request
             s.parse(
                 "foo_domain_pers=zzz; Max-Age=120",
                 &Url::parse("http://foo.example.com").unwrap(),
-            ).unwrap(); // should not be included in our www.example.com request
+            )
+            .unwrap(); // should not be included in our www.example.com request
             has_sess!(s, "www.example.com", "/", "0");
             has_pers!(s, "www.example.com", "/", "1");
             has_pers!(s, "www.example.com", "/", "2");
@@ -449,28 +479,30 @@ mod tests {
             has_pers!(s, "foo.example.com", "/", "foo_domain_pers"); // it should be parsed, but not included in our non-foo.example.com request
 
             let body = "this is the body".to_string();
-            let resp = s.get_with("http://www.example.com", |mut r| {
-                let incoming = r.cookies.clone();
-                is_in_vec!(incoming, "0");
-                is_in_vec!(incoming, "1");
-                is_in_vec!(incoming, "2");
-                not_in_vec!(incoming, "3"); // hasn't been set yet...
-                not_in_vec!(incoming, "secure"); // not a secure request
-                not_in_vec!(incoming, "foo_domain"); // wrong domain
-                not_in_vec!(incoming, "foo_domain_pers"); // wrong domain
-                r.set_body(&body);
-                r.set_outgoing(vec![
-                    RawCookie::parse("0=hi").unwrap(), // update the non-persistent 0 cookie
-                    RawCookie::parse("1=sess1; Max-Age=120").unwrap(), // update the 1 persistent cookie
-                    RawCookie::parse("2=c; Max-Age=0").unwrap(), // expire the 2 cookie
-                    RawCookie::parse("3=c").unwrap(), // new session cookie
-                    RawCookie::parse("4=d; Max-Age=0").unwrap(), // add an expired cookie, should never show up
-                    RawCookie::parse("5=e; Domain=invalid.com").unwrap(), // invalid domain, should never show up
-                    RawCookie::parse("6=f; Domain=example.com").unwrap(), // should be able to set for a higher domain
-                    RawCookie::parse("7=g; Max-Age=300").unwrap(), // new persistent (5min) cookie
-                ]);
-                r.send()
-            }).unwrap();
+            let resp = s
+                .get_with("http://www.example.com", |mut r| {
+                    let incoming = r.cookies.clone();
+                    is_in_vec!(incoming, "0");
+                    is_in_vec!(incoming, "1");
+                    is_in_vec!(incoming, "2");
+                    not_in_vec!(incoming, "3"); // hasn't been set yet...
+                    not_in_vec!(incoming, "secure"); // not a secure request
+                    not_in_vec!(incoming, "foo_domain"); // wrong domain
+                    not_in_vec!(incoming, "foo_domain_pers"); // wrong domain
+                    r.set_body(&body);
+                    r.set_outgoing(vec![
+                        RawCookie::parse("0=hi").unwrap(), // update the non-persistent 0 cookie
+                        RawCookie::parse("1=sess1; Max-Age=120").unwrap(), // update the 1 persistent cookie
+                        RawCookie::parse("2=c; Max-Age=0").unwrap(),       // expire the 2 cookie
+                        RawCookie::parse("3=c").unwrap(),                  // new session cookie
+                        RawCookie::parse("4=d; Max-Age=0").unwrap(), // add an expired cookie, should never show up
+                        RawCookie::parse("5=e; Domain=invalid.com").unwrap(), // invalid domain, should never show up
+                        RawCookie::parse("6=f; Domain=example.com").unwrap(), // should be able to set for a higher domain
+                        RawCookie::parse("7=g; Max-Age=300").unwrap(), // new persistent (5min) cookie
+                    ]);
+                    r.send()
+                })
+                .unwrap();
             assert_eq!("body was: 'this is the body'", resp.body());
 
             has_sess!(s, "www.example.com", "/", "0"); // was existing
@@ -507,28 +539,30 @@ mod tests {
             not_has!(s, "foo_domain"); // it was parsed, but not persistent
             has_pers!(s, "foo.example.com", "/", "foo_domain_pers"); // was parsed, not included, and persistent
 
-            let resp = s.get_with("https://www.example.com", |mut r| {
-                let incoming = r.cookies.clone();
-                not_in_vec!(incoming, "0");
-                is_in_vec!(incoming, "1");
-                not_in_vec!(incoming, "2");
-                not_in_vec!(incoming, "3"); // was set last session, but not persistent
-                not_in_vec!(incoming, "4"); // was expired when set
-                not_in_vec!(incoming, "5"); // invalid domain
-                not_in_vec!(incoming, "6"); // not persistent
-                is_in_vec!(incoming, "7"); // persistent
-                is_in_vec!(incoming, "secure"); // a secure request, so included
-                not_in_vec!(incoming, "foo_domain"); // wrong domain, non-persistent anyway
-                not_in_vec!(incoming, "foo_domain_pers"); // wrong domain
-                r.set_body("this is the second body");
-                r.set_outgoing(vec![
-                    RawCookie::parse("1=sess2; Max-Age=120").unwrap(), // update the 1 persistent cookie
-                    RawCookie::parse("secure=ZZ; Max-Age=120").unwrap(), // update the secure cookie
-                    RawCookie::parse("2=B; Max-Age=120; Path=/foo").unwrap(), // re-add the 2-cookie, but for a sub-path
-                    RawCookie::parse("8=h; Domain=example.com").unwrap(), // should be able to set persistent for a higher domain
-                ]);
-                r.send()
-            }).unwrap();
+            let resp = s
+                .get_with("https://www.example.com", |mut r| {
+                    let incoming = r.cookies.clone();
+                    not_in_vec!(incoming, "0");
+                    is_in_vec!(incoming, "1");
+                    not_in_vec!(incoming, "2");
+                    not_in_vec!(incoming, "3"); // was set last session, but not persistent
+                    not_in_vec!(incoming, "4"); // was expired when set
+                    not_in_vec!(incoming, "5"); // invalid domain
+                    not_in_vec!(incoming, "6"); // not persistent
+                    is_in_vec!(incoming, "7"); // persistent
+                    is_in_vec!(incoming, "secure"); // a secure request, so included
+                    not_in_vec!(incoming, "foo_domain"); // wrong domain, non-persistent anyway
+                    not_in_vec!(incoming, "foo_domain_pers"); // wrong domain
+                    r.set_body("this is the second body");
+                    r.set_outgoing(vec![
+                        RawCookie::parse("1=sess2; Max-Age=120").unwrap(), // update the 1 persistent cookie
+                        RawCookie::parse("secure=ZZ; Max-Age=120").unwrap(), // update the secure cookie
+                        RawCookie::parse("2=B; Max-Age=120; Path=/foo").unwrap(), // re-add the 2-cookie, but for a sub-path
+                        RawCookie::parse("8=h; Domain=example.com").unwrap(), // should be able to set persistent for a higher domain
+                    ]);
+                    r.send()
+                })
+                .unwrap();
             assert_eq!("body was: 'this is the second body'", resp.body());
 
             not_has!(s, "0");
@@ -565,27 +599,30 @@ mod tests {
             not_has!(s, "foo_domain");
             has_pers!(s, "foo.example.com", "/", "foo_domain_pers");
 
-            let resp = s.get_with("http://foo.example.com", |mut r| {
-                let incoming = r.cookies.clone();
-                not_in_vec!(incoming, "0");
-                not_in_vec!(incoming, "1"); // wrong domain
-                not_in_vec!(incoming, "2"); // newly added, but wrong domain & path
-                not_in_vec!(incoming, "3"); // was set last session, wrong domain, not persistent
-                not_in_vec!(incoming, "4"); // was expired when set
-                not_in_vec!(incoming, "5"); // invalid domain
-                not_in_vec!(incoming, "6"); // higher level domain, but not persistent
-                not_in_vec!(incoming, "7"); // persistent, but wrong domain
-                not_in_vec!(incoming, "8"); // not-persistent, higher level domain
-                not_in_vec!(incoming, "secure"); // secure request, but wrong domain
-                not_in_vec!(incoming, "foo_domain"); // correct domain, but non-persistent
-                is_in_vec!(incoming, "foo_domain_pers"); // correct domain, persistent
-                r.set_outgoing(vec![
-                    RawCookie::parse("1=sess3; Max-Age=120").unwrap(), // set a new 1 cookie for foo.example.com
-                    RawCookie::parse("secure=YY; Max-Age=120; Secure").unwrap(), // this secure cookie is for foo.example.com
-                    RawCookie::parse("9=v; Domain=example.com; Path=/foo; Max-Age=120; Secure").unwrap(), // this secure cookie is for example.com/foo
-                ]);
-                r.send()
-            }).unwrap();
+            let resp = s
+                .get_with("http://foo.example.com", |mut r| {
+                    let incoming = r.cookies.clone();
+                    not_in_vec!(incoming, "0");
+                    not_in_vec!(incoming, "1"); // wrong domain
+                    not_in_vec!(incoming, "2"); // newly added, but wrong domain & path
+                    not_in_vec!(incoming, "3"); // was set last session, wrong domain, not persistent
+                    not_in_vec!(incoming, "4"); // was expired when set
+                    not_in_vec!(incoming, "5"); // invalid domain
+                    not_in_vec!(incoming, "6"); // higher level domain, but not persistent
+                    not_in_vec!(incoming, "7"); // persistent, but wrong domain
+                    not_in_vec!(incoming, "8"); // not-persistent, higher level domain
+                    not_in_vec!(incoming, "secure"); // secure request, but wrong domain
+                    not_in_vec!(incoming, "foo_domain"); // correct domain, but non-persistent
+                    is_in_vec!(incoming, "foo_domain_pers"); // correct domain, persistent
+                    r.set_outgoing(vec![
+                        RawCookie::parse("1=sess3; Max-Age=120").unwrap(), // set a new 1 cookie for foo.example.com
+                        RawCookie::parse("secure=YY; Max-Age=120; Secure").unwrap(), // this secure cookie is for foo.example.com
+                        RawCookie::parse("9=v; Domain=example.com; Path=/foo; Max-Age=120; Secure")
+                            .unwrap(), // this secure cookie is for example.com/foo
+                    ]);
+                    r.send()
+                })
+                .unwrap();
             assert_eq!("no body sent", resp.body());
 
             not_has!(s, "0");
@@ -646,7 +683,8 @@ mod tests {
                 not_in_vec!(incoming, "foo_domain_pers");
                 // no outgoing cookies
                 r.send()
-            }).unwrap();
+            })
+            .unwrap();
             save_session!(s)
         };
 
@@ -689,7 +727,8 @@ mod tests {
                 not_in_vec!(incoming, "foo_domain_pers");
                 // no outgoing cookies
                 r.send()
-            }).unwrap();
+            })
+            .unwrap();
             save_session!(s)
         };
 
@@ -697,14 +736,16 @@ mod tests {
         s.get_with("https://www.example.com/", |r| {
             let incoming = r.cookies.clone();
             not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
-            // no outgoing cookies
+                                        // no outgoing cookies
             r.send()
-        }).unwrap();
+        })
+        .unwrap();
         s.get_with("https://www.example.com/bar", |r| {
             let incoming = r.cookies.clone();
             not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
-            // no outgoing cookies
+                                        // no outgoing cookies
             r.send()
-        }).unwrap();
+        })
+        .unwrap();
     }
 }

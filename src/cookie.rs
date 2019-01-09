@@ -2,7 +2,7 @@ use cookie_domain::CookieDomain;
 use cookie_expiration::CookieExpiration;
 use cookie_path::CookiePath;
 
-use raw_cookie::{ParseError, Cookie as RawCookie, CookieBuilder as RawCookieBuilder};
+use raw_cookie::{Cookie as RawCookie, CookieBuilder as RawCookieBuilder, ParseError};
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::{error, fmt};
@@ -95,7 +95,7 @@ mod serde_raw_cookie {
     use raw_cookie::Cookie as RawCookie;
     use serde::de::Error;
     use serde::de::Unexpected;
-    use serde::{Serialize, Serializer, Deserialize, Deserializer};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::str::FromStr;
 
     pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
@@ -123,9 +123,10 @@ mod serde_raw_cookie {
 impl<'a> Cookie<'a> {
     /// Whether this `Cookie` should be included for `request_url`
     pub fn matches(&self, request_url: &Url) -> bool {
-        self.path.matches(request_url) && self.domain.matches(request_url) &&
-            (!self.raw_cookie.secure() || is_secure(request_url)) &&
-            (!self.raw_cookie.http_only() || is_http_scheme(request_url))
+        self.path.matches(request_url)
+            && self.domain.matches(request_url)
+            && (!self.raw_cookie.secure() || is_secure(request_url))
+            && (!self.raw_cookie.http_only() || is_http_scheme(request_url))
     }
 
     /// Should this `Cookie` be persisted across sessions?
@@ -268,11 +269,11 @@ impl<'a> From<Cookie<'a>> for RawCookie<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::Cookie;
     use cookie_domain::CookieDomain;
     use cookie_expiration::CookieExpiration;
     use raw_cookie::Cookie as RawCookie;
-    use super::Cookie;
-    use time::{Duration, Tm, now_utc};
+    use time::{now_utc, Duration, Tm};
     use url::Url;
 
     use utils::test as test_utils;
@@ -763,7 +764,12 @@ mod serde {
         #[test]
         fn serde() {
             encode_decode(
-                &test_utils::make_cookie("cookie1=value1", "http://example.com/foo/bar", None, None),
+                &test_utils::make_cookie(
+                    "cookie1=value1",
+                    "http://example.com/foo/bar",
+                    None,
+                    None,
+                ),
                 json!({
                     "raw_cookie": "cookie1=value1",
                     "path": ["/foo", false],

@@ -10,9 +10,9 @@ impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         if let Some(set_cookie) = self.headers().get(SET_COOKIE) {
             set_cookie
-               .to_str()
+                .to_str()
                 .iter()
-               .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
+                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
                     Ok(raw_cookie) => Some(raw_cookie),
                     Err(e) => {
                         debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
@@ -32,9 +32,7 @@ impl CarriesCookies for reqwest::RequestBuilder {
             debug!("no cookies to add to request");
             self
         } else {
-            let cookies = cookies
-               .iter()
-               .map(|rc| rc.encoded().to_string());
+            let cookies = cookies.iter().map(|rc| rc.encoded().to_string());
             let mut out = self;
             for cookie in cookies {
                 out = out.header(COOKIE, cookie);
@@ -76,21 +74,31 @@ mod tests {
     use env_logger;
     use reqwest;
 
-    use session::WithSession;
     use super::ReqwestSession;
+    use session::WithSession;
 
     macro_rules! dump {
-        ($e: expr, $i: ident) => ({
-            use time::now_utc;
+        ($e: expr, $i: ident) => {{
             use serde_json;
+            use time::now_utc;
             println!("");
             println!("==== {}: {} ====", $e, now_utc().rfc3339());
             for c in $i.iter_any() {
-                println!("{} {}", if c.is_expired() { "XXXXX" } else if c.is_persistent() { "PPPPP" }else { "     " }, serde_json::to_string(c).unwrap());
+                println!(
+                    "{} {}",
+                    if c.is_expired() {
+                        "XXXXX"
+                    } else if c.is_persistent() {
+                        "PPPPP"
+                    } else {
+                        "     "
+                    },
+                    serde_json::to_string(c).unwrap()
+                );
                 println!("----------------");
             }
             println!("================");
-        })
+        }};
     }
 
     #[test]
@@ -102,24 +110,28 @@ mod tests {
         dump!("init", s);
         s.get_with("http://www.google.com", |req| {
             req.send().map_err(ReqwestSessionError::from)
-        }).expect("www.google.com get_with failed");
+        })
+        .expect("www.google.com get_with failed");
         let c1 = s.iter_unexpired().count();
         assert!(c1 > 0);
         s.get_with("http://www.google.com", |req| {
             req.send().map_err(ReqwestSessionError::from)
-        }).expect("www.google.com get_with failed");
+        })
+        .expect("www.google.com get_with failed");
         assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
         s.get_with("http://www.yahoo.com", |req| {
             req.send().map_err(ReqwestSessionError::from)
-        }).expect("www.yahoo.com get_with failed");
+        })
+        .expect("www.yahoo.com get_with failed");
         dump!("after yahoo", s);
         let c2 = s.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
         s.get_with("http://www.msn.com", |req| {
             req.send().map_err(ReqwestSessionError::from)
-        }).expect("www.msn.com get_with failed");
+        })
+        .expect("www.msn.com get_with failed");
         dump!("after msn", s);
         let c3 = s.iter_unexpired().count();
         assert!(c3 > 0);

@@ -58,10 +58,8 @@ impl From<u64> for CookieExpiration {
             let utc_tm = time::now_utc() + time::Duration::seconds(max_age as i64);
             match time::strptime(&format!("{}", utc_tm.rfc3339()), "%Y-%m-%dT%H:%M:%SZ") {
                 Ok(utc_tm) => utc_tm,
-                Err(_) => {
-                    time::strptime("9999-12-31T23:59:59Z", "%Y-%m-%dT%H:%M:%SZ")
-                        .expect("unable to strptime maximum value")
-                }
+                Err(_) => time::strptime("9999-12-31T23:59:59Z", "%Y-%m-%dT%H:%M:%SZ")
+                    .expect("unable to strptime maximum value"),
             }
         };
         CookieExpiration::from(utc_tm)
@@ -73,10 +71,8 @@ impl From<time::Tm> for CookieExpiration {
         // format & re-parse the Tm to make sure de/serialization is consistent
         let utc_tm = match time::strptime(&format!("{}", utc_tm.rfc3339()), "%Y-%m-%dT%H:%M:%SZ") {
             Ok(utc_tm) => utc_tm,
-            Err(_) => {
-                time::strptime("9999-12-31T23:59:59Z", "%Y-%m-%dT%H:%M:%SZ")
-                    .expect("unable to strptime maximum value")
-            }
+            Err(_) => time::strptime("9999-12-31T23:59:59Z", "%Y-%m-%dT%H:%M:%SZ")
+                .expect("unable to strptime maximum value"),
         };
         CookieExpiration::AtUtc(SerializableTm::from(utc_tm))
     }
@@ -150,10 +146,10 @@ mod tests {
 }
 
 mod serde {
-    use serde::de::{Deserializer, Visitor};
-    use serde;
-    use std::fmt;
     use super::SerializableTm;
+    use serde;
+    use serde::de::{Deserializer, Visitor};
+    use std::fmt;
     use time;
 
     impl serde::Serialize for SerializableTm {

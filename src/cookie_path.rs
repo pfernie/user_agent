@@ -21,10 +21,10 @@ impl CookiePath {
             let request_path = request_url.path();
             let cookie_path = &*self.0;
             // o  The cookie-path and the request-path are identical.
-            cookie_path == request_path ||
-                (request_path.starts_with(cookie_path) &&
-                     (cookie_path.ends_with('/') ||
-                          &request_path[cookie_path.len()..cookie_path.len() + 1] == "/"))
+            cookie_path == request_path
+                || (request_path.starts_with(cookie_path)
+                    && (cookie_path.ends_with('/')
+                        || &request_path[cookie_path.len()..cookie_path.len() + 1] == "/"))
         }
     }
 
@@ -62,7 +62,7 @@ impl CookiePath {
         } else {
             let path = request_url.path();
             match path.rfind('/') {
-                None => "/".into(), // no "/" in string, default to "/" (case 2)
+                None => "/".into(),                   // no "/" in string, default to "/" (case 2)
                 Some(i) => path[0..max(i, 1)].into(), // case 4 (subsumes case 3)
             }
         };
@@ -122,9 +122,8 @@ mod tests {
     #[test]
     fn default_path() {
         fn get_path(url: &str) -> String {
-            CookiePath::default_path(&Url::parse(url).expect(
-                "unable to parse url in default_path",
-            )).into()
+            CookiePath::default_path(&Url::parse(url).expect("unable to parse url in default_path"))
+                .into()
         }
         assert_eq!(get_path("data:foobusbar"), "/");
         assert_eq!(get_path("http://example.com"), "/");
@@ -139,9 +138,8 @@ mod tests {
     }
 
     fn do_match(exp: bool, cp: &str, rp: &str) {
-        let url = Url::parse(&format!("http://example.com{}", rp)).expect(
-            "unable to parse url in do_match",
-        );
+        let url = Url::parse(&format!("http://example.com{}", rp))
+            .expect("unable to parse url in do_match");
         let cp = CookiePath::parse(cp).expect("unable to parse CookiePath in do_match");
         assert!(
             exp == cp.matches(&url),
@@ -171,7 +169,8 @@ mod tests {
             CookiePath::new(
                 cp,
                 &Url::parse(url).expect("unable to parse url in bad_path_defaults"),
-            ).into()
+            )
+            .into()
         }
         assert_eq!(get_path("", "http://example.com/"), "/");
         assert_eq!(get_path("a/foo", "http://example.com/"), "/");
