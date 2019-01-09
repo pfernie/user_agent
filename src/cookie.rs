@@ -125,8 +125,8 @@ impl<'a> Cookie<'a> {
     pub fn matches(&self, request_url: &Url) -> bool {
         self.path.matches(request_url)
             && self.domain.matches(request_url)
-            && (!self.raw_cookie.secure() || is_secure(request_url))
-            && (!self.raw_cookie.http_only() || is_http_scheme(request_url))
+            && (!self.raw_cookie.secure().unwrap_or(false) || is_secure(request_url))
+            && (!self.raw_cookie.http_only().unwrap_or(false) || is_http_scheme(request_url))
     }
 
     /// Should this `Cookie` be persisted across sessions?
@@ -163,7 +163,7 @@ impl<'a> Cookie<'a> {
     /// Create a new `user_agent::Cookie` from a `cookie::Cookie` (from the `cookie` crate)
     /// received from `request_url`.
     pub fn new(raw_cookie: &RawCookie<'a>, request_url: &Url) -> CookieResult<'a> {
-        if raw_cookie.http_only() && !is_http_scheme(request_url) {
+        if raw_cookie.http_only().unwrap_or(false) && !is_http_scheme(request_url) {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
             // cookie entirely.
@@ -211,8 +211,12 @@ impl<'a> Cookie<'a> {
         // These are all tracked via Cookie, clear from RawCookie
         let mut builder =
             RawCookieBuilder::new(raw_cookie.name().to_owned(), raw_cookie.value().to_owned());
-        builder = builder.secure(raw_cookie.secure());
-        builder = builder.http_only(raw_cookie.http_only());
+        if let Some(secure) = raw_cookie.secure() {
+            builder = builder.secure(secure);
+        }
+        if let Some(http_only) = raw_cookie.http_only() {
+            builder = builder.http_only(http_only);
+        }
         if let Some(same_site) = raw_cookie.same_site() {
             builder = builder.same_site(same_site);
         }

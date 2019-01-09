@@ -149,9 +149,13 @@ impl CookieStore {
                     })
             });
         match (!is_http_scheme(request_url), !is_secure(request_url)) {
-            (true, true) => cookies.filter(|c| !c.http_only() && !c.secure()).collect(),
-            (true, false) => cookies.filter(|c| !c.http_only()).collect(),
-            (false, true) => cookies.filter(|c| !c.secure()).collect(),
+            (true, true) => cookies
+                .filter(|c| !c.http_only().unwrap_or(false) && !c.secure().unwrap_or(false))
+                .collect(),
+            (true, false) => cookies
+                .filter(|c| !c.http_only().unwrap_or(false))
+                .collect(),
+            (false, true) => cookies.filter(|c| !c.secure().unwrap_or(false)).collect(),
             (false, false) => cookies.collect(),
         }
     }
@@ -176,7 +180,7 @@ impl CookieStore {
     /// `Cookie` in the store, the existing `Cookie` wil be `expired()` and
     /// `Ok(StoreAction::ExpiredExisting)` will be returned.
     pub fn insert(&mut self, mut cookie: Cookie<'static>, request_url: &Url) -> InsertResult {
-        if cookie.http_only() && !is_http_scheme(request_url) {
+        if cookie.http_only().unwrap_or(false) && !is_http_scheme(request_url) {
             // If the cookie was received from a "non-HTTP" API and the
             // cookie's http-only-flag is set, abort these steps and ignore the
             // cookie entirely.
@@ -217,7 +221,7 @@ impl CookieStore {
                 .as_cow()
                 .ok_or_else(|| CookieError::UnspecifiedDomain)?;
             if let Some(old_cookie) = self.get_mut(&cookie_domain, &cookie.path, cookie.name()) {
-                if old_cookie.http_only() && !is_http_scheme(request_url) {
+                if old_cookie.http_only().unwrap_or(false) && !is_http_scheme(request_url) {
                     // 2.  If the newly created cookie was received from a "non-HTTP"
                     //    API and the old-cookie's http-only-flag is set, abort these
                     //    steps and ignore the newly created cookie entirely.

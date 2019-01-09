@@ -152,18 +152,12 @@ impl<C> Session<C> {
         failure::Error: From<E>,
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
-        Ok(Session {
-            client,
-            store,
-        })
+        Ok(Session { client, store })
     }
 
     pub fn load_json<R: BufRead>(client: C, reader: R) -> StoreResult<Session<C>> {
         let store = try!(CookieStore::load_json(reader));
-        Ok(Session {
-            client,
-            store,
-        })
+        Ok(Session { client, store })
     }
 
     pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> StoreResult<()>
