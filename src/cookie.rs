@@ -48,13 +48,13 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", error::Error::description(self))
     }
 }
@@ -99,7 +99,7 @@ mod serde_raw_cookie {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::str::FromStr;
 
-    pub fn serialize<S>(cookie: &RawCookie, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(cookie: &RawCookie<'_>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -747,7 +747,7 @@ mod serde {
         use serde_json::json;
         use time;
 
-        fn encode_decode(c: &Cookie, expected: serde_json::Value) {
+        fn encode_decode(c: &Cookie<'_>, expected: serde_json::Value) {
             let encoded = serde_json::to_value(c).unwrap();
             assert_eq!(
                 expected,
@@ -756,7 +756,7 @@ mod serde {
                 expected.to_string(),
                 encoded.to_string()
             );
-            let decoded: Cookie = serde_json::from_value(encoded).unwrap();
+            let decoded: Cookie<'_> = serde_json::from_value(encoded).unwrap();
             assert_eq!(
                 *c,
                 decoded,

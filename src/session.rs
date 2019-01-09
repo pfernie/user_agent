@@ -164,7 +164,7 @@ impl<C> Session<C> {
     pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> StoreResult<()>
     where
         W: Write,
-        F: Fn(&Cookie) -> ::std::result::Result<String, E>,
+        F: Fn(&Cookie<'_>) -> ::std::result::Result<String, E>,
         failure::Error: From<E>,
     {
         self.store.save(writer, cookie_to_string)
@@ -190,7 +190,7 @@ mod tests {
     /// An enum of possible body types for a Request.
     pub enum Body<'b> {
         /// A Reader does not necessarily know it's size, so it is chunked.
-        ChunkedBody(&'b mut (Read + 'b)),
+        ChunkedBody(&'b mut (dyn Read + 'b)),
         // /// For Readers that can know their size, like a `File`.
         // SizedBody(&'b mut (Read + 'b), u64),
         /// A String has a size, and uses Content-Length.
@@ -300,7 +300,7 @@ mod tests {
 
     struct TestClient;
     impl TestClient {
-        fn request(&self, _: &Url) -> TestClientRequest {
+        fn request(&self, _: &Url) -> TestClientRequest<'_> {
             TestClientRequest {
                 cookies: vec![],
                 outgoing: vec![],
@@ -330,13 +330,13 @@ mod tests {
         fn description(&self) -> &str {
             "TestError"
         }
-        fn cause(&self) -> Option<&error::Error> {
+        fn cause(&self) -> Option<&dyn error::Error> {
             None
         }
     }
     use std::fmt;
     impl fmt::Display for TestError {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "test error")
         }
     }

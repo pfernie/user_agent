@@ -51,7 +51,7 @@ impl CookieStore {
 
     /// Returns a reference to the __unexpired__ `Cookie` corresponding to the specified `domain`,
     /// `path`, and `name`.
-    pub fn get(&self, domain: &str, path: &str, name: &str) -> Option<&Cookie> {
+    pub fn get(&self, domain: &str, path: &str, name: &str) -> Option<&Cookie<'_>> {
         self.get_any(domain, path, name).and_then(|cookie| {
             if cookie.is_expired() {
                 None
@@ -168,7 +168,7 @@ impl CookieStore {
 
     /// Converts a `cookie::Cookie` (from the `cookie` crate) into a `user_agent::Cookie` and
     /// inserts it into the store.
-    pub fn insert_raw(&mut self, cookie: &RawCookie, request_url: &Url) -> InsertResult {
+    pub fn insert_raw(&mut self, cookie: &RawCookie<'_>, request_url: &Url) -> InsertResult {
         Cookie::new(cookie, request_url)
             .and_then(|cookie| self.insert(cookie.into_owned(), request_url))
     }
@@ -260,7 +260,7 @@ impl CookieStore {
     }
 
     /// An iterator visiting all the __unexpired__ cookies in the store
-    pub fn iter_unexpired<'a>(&'a self) -> Box<Iterator<Item = &'a Cookie<'static>> + 'a> {
+    pub fn iter_unexpired<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Cookie<'static>> + 'a> {
         Box::new(
             self.cookies
                 .values()
@@ -271,7 +271,7 @@ impl CookieStore {
     }
 
     /// An iterator visiting all (including __expired__) cookies in the store
-    pub fn iter_any<'a>(&'a self) -> Box<Iterator<Item = &'a Cookie<'static>> + 'a> {
+    pub fn iter_any<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Cookie<'static>> + 'a> {
         Box::new(
             self.cookies
                 .values()
@@ -316,7 +316,7 @@ impl CookieStore {
     {
         let mut cookies = HashMap::new();
         for line in reader.lines() {
-            let cookie: Cookie = cookie_from_str(&line?[..])?;
+            let cookie: Cookie<'_> = cookie_from_str(&line?[..])?;
             if !cookie.is_expired() {
                 cookies
                     .entry(String::from(&cookie.domain))

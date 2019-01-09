@@ -112,7 +112,7 @@ impl CookieDomain {
 
     /// Get a borrowed string representation of the domain. For `Empty` and `NotPresent` variants,
     /// `None` shall be returned;
-    pub fn as_cow(&self) -> Option<std::borrow::Cow<str>> {
+    pub fn as_cow(&self) -> Option<std::borrow::Cow<'_, str>> {
         match *self {
             CookieDomain::HostOnly(ref s) | CookieDomain::Suffix(ref s) => {
                 Some(std::borrow::Cow::Borrowed(s))
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn from_raw_cookie() {
-        fn raw_cookie(s: &str) -> RawCookie {
+        fn raw_cookie(s: &str) -> RawCookie<'_> {
             RawCookie::parse(s).unwrap()
         }
         assert_eq!(
