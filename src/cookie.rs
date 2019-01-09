@@ -219,9 +219,9 @@ impl<'a> Cookie<'a> {
 
         Ok(Cookie {
             raw_cookie: builder.finish(),
-            path: path,
-            expires: expires,
-            domain: domain,
+            path,
+            expires,
+            domain,
         })
     }
 

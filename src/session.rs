@@ -140,7 +140,7 @@ pub struct Session<C> {
 impl<C> Session<C> {
     pub fn new(client: C) -> Self {
         Session {
-            client: client,
+            client,
             store: CookieStore::default(),
         }
     }
@@ -153,16 +153,16 @@ impl<C> Session<C> {
     {
         let store = try!(CookieStore::load(reader, cookie_from_str));
         Ok(Session {
-            client: client,
-            store: store,
+            client,
+            store,
         })
     }
 
     pub fn load_json<R: BufRead>(client: C, reader: R) -> StoreResult<Session<C>> {
         let store = try!(CookieStore::load_json(reader));
         Ok(Session {
-            client: client,
-            store: store,
+            client,
+            store,
         })
     }
 

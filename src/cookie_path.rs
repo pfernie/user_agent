@@ -24,7 +24,7 @@ impl CookiePath {
             cookie_path == request_path
                 || (request_path.starts_with(cookie_path)
                     && (cookie_path.ends_with('/')
-                        || &request_path[cookie_path.len()..cookie_path.len() + 1] == "/"))
+                        || &request_path[cookie_path.len()..=cookie_path.len()] == "/"))
         }
     }
 

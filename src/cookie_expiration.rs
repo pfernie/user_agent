@@ -38,7 +38,7 @@ impl CookieExpiration {
     /// Indicates if the `Cookie` expires as of `utc_tm`.
     pub fn expires_by(&self, utc_tm: &Tm) -> bool {
         match *self {
-            CookieExpiration::AtUtc(ref expire_tm) => &**expire_tm <= utc_tm,
+            CookieExpiration::AtUtc(ref expire_tm) => **expire_tm <= *utc_tm,
             CookieExpiration::SessionEnd => false,
         }
     }

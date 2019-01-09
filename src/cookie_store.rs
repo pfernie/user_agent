@@ -323,7 +323,7 @@ impl CookieStore {
             }
         }
         Ok(CookieStore {
-            cookies: cookies,
+            cookies,
             public_suffix_list: None,
         })
     }
