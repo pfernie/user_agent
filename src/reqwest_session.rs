@@ -1,10 +1,10 @@
-use cookie_store::CookieStore;
-use raw_cookie::Cookie as RawCookie;
+use crate::cookie_store::CookieStore;
+use crate::raw_cookie::Cookie as RawCookie;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
-use session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
+use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
-use utils::IntoUrl;
+use crate::utils::IntoUrl;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
@@ -75,7 +75,7 @@ mod tests {
     use reqwest;
 
     use super::ReqwestSession;
-    use session::WithSession;
+    use crate::session::WithSession;
 
     macro_rules! dump {
         ($e: expr, $i: ident) => {{

@@ -2,12 +2,12 @@ use std;
 
 use idna;
 use publicsuffix;
-use raw_cookie::Cookie as RawCookie;
+use crate::raw_cookie::Cookie as RawCookie;
 use try_from::TryFrom;
 use url::{Host, Url};
 
-use utils::is_host_name;
-use CookieError;
+use crate::utils::is_host_name;
+use crate::CookieError;
 
 pub fn is_match(domain: &str, request_url: &Url) -> bool {
     CookieDomain::try_from(domain)
@@ -179,12 +179,12 @@ impl<'a> From<&'a CookieDomain> for String {
 
 #[cfg(test)]
 mod tests {
-    use raw_cookie::Cookie as RawCookie;
+    use crate::raw_cookie::Cookie as RawCookie;
     use try_from::TryFrom;
     use url::Url;
 
     use super::CookieDomain;
-    use utils::test::*;
+    use crate::utils::test::*;
 
     #[inline]
     fn matches(expected: bool, cookie_domain: &CookieDomain, url: &str) {
@@ -370,8 +370,8 @@ mod serde {
         use serde_json;
         use try_from::TryFrom;
 
-        use cookie_domain::CookieDomain;
-        use utils::test::*;
+        use crate::cookie_domain::CookieDomain;
+        use crate::utils::test::*;
 
         fn encode_decode(cd: &CookieDomain, exp_json: &str) {
             let encoded = serde_json::to_string(cd).unwrap();

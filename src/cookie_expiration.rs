@@ -97,7 +97,7 @@ mod tests {
     use super::CookieExpiration;
     use time;
 
-    use utils::test::*;
+    use crate::utils::test::*;
 
     #[test]
     fn max_age_bounds() {
@@ -196,7 +196,7 @@ mod serde {
 
     #[cfg(test)]
     mod tests {
-        use cookie_expiration::CookieExpiration;
+        use crate::cookie_expiration::CookieExpiration;
         use serde_json;
         use time;
 

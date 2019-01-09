@@ -38,7 +38,7 @@ pub fn is_secure(url: &Url) -> bool {
 
 #[cfg(test)]
 pub mod test {
-    use cookie::Cookie;
+    use crate::cookie::Cookie;
     use time::{now_utc, Duration, Tm};
     use url::Url;
     #[inline]

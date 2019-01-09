@@ -19,18 +19,18 @@ extern crate try_from;
 extern crate url;
 
 mod cookie;
-pub use cookie::Error as CookieError;
-pub use cookie::{Cookie, CookieResult};
+pub use crate::cookie::Error as CookieError;
+pub use crate::cookie::{Cookie, CookieResult};
 mod cookie_domain;
 mod cookie_expiration;
 mod cookie_path;
 mod cookie_store;
-pub use cookie_store::CookieStore;
+pub use crate::cookie_store::CookieStore;
 #[macro_use]
 mod session;
-pub use session::{Session, WithSession};
+pub use crate::session::{Session, WithSession};
 pub mod reqwest_session;
-pub use reqwest_session::ReqwestSession;
+pub use crate::reqwest_session::ReqwestSession;
 mod utils;
 
 #[derive(Debug, Fail)]

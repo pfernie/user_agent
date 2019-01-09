@@ -1,15 +1,15 @@
-use cookie_domain::CookieDomain;
-use cookie_expiration::CookieExpiration;
-use cookie_path::CookiePath;
+use crate::cookie_domain::CookieDomain;
+use crate::cookie_expiration::CookieExpiration;
+use crate::cookie_path::CookiePath;
 
-use raw_cookie::{Cookie as RawCookie, CookieBuilder as RawCookieBuilder, ParseError};
+use crate::raw_cookie::{Cookie as RawCookie, CookieBuilder as RawCookieBuilder, ParseError};
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::{error, fmt};
 use time;
 use try_from::TryFrom;
 use url::Url;
-use utils::{is_http_scheme, is_secure};
+use crate::utils::{is_http_scheme, is_secure};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
@@ -92,7 +92,7 @@ pub struct Cookie<'a> {
 }
 
 mod serde_raw_cookie {
-    use raw_cookie::Cookie as RawCookie;
+    use crate::raw_cookie::Cookie as RawCookie;
     use serde::de::Error;
     use serde::de::Unexpected;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -274,13 +274,13 @@ impl<'a> From<Cookie<'a>> for RawCookie<'a> {
 #[cfg(test)]
 mod tests {
     use super::Cookie;
-    use cookie_domain::CookieDomain;
-    use cookie_expiration::CookieExpiration;
-    use raw_cookie::Cookie as RawCookie;
+    use crate::cookie_domain::CookieDomain;
+    use crate::cookie_expiration::CookieExpiration;
+    use crate::raw_cookie::Cookie as RawCookie;
     use time::{now_utc, Duration, Tm};
     use url::Url;
 
-    use utils::test as test_utils;
+    use crate::utils::test as test_utils;
 
     fn cmp_domain(cookie: &str, url: &str, exp: CookieDomain) {
         let ua = test_utils::make_cookie(cookie, url, None, None);
@@ -739,12 +739,12 @@ mod tests {
 mod serde {
     #[cfg(test)]
     mod tests {
-        use cookie::Cookie;
-        use cookie_expiration::CookieExpiration;
+        use crate::cookie::Cookie;
+        use crate::cookie_expiration::CookieExpiration;
         use serde_json;
         use time;
-        use utils::test as test_utils;
-        use utils::test::*;
+        use crate::utils::test as test_utils;
+        use crate::utils::test::*;
 
         fn encode_decode(c: &Cookie, expected: serde_json::Value) {
             let encoded = serde_json::to_value(c).unwrap();

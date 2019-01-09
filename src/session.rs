@@ -1,15 +1,15 @@
-use cookie::Cookie;
-use cookie_store::{CookieStore, StoreResult};
-use raw_cookie::Cookie as RawCookie;
+use crate::cookie::Cookie;
+use crate::cookie_store::{CookieStore, StoreResult};
+use crate::raw_cookie::Cookie as RawCookie;
 use std::io::{BufRead, Write};
 use std::ops::Deref;
 use url::ParseError as ParseUrlError;
 use url::Url;
-use utils::IntoUrl;
+use crate::utils::IntoUrl;
 
 /// Trait representing requests which can carry a Cookie header
 pub trait CarriesCookies {
-    fn add_cookies(self, Vec<&RawCookie<'static>>) -> Self;
+    fn add_cookies(self, _: Vec<&RawCookie<'static>>) -> Self;
 }
 
 /// Trait representing responses which may have a Set-Cookie header
@@ -102,8 +102,8 @@ macro_rules! define_req_with {
 }
 
 pub trait SessionCookieStore {
-    fn store_cookies(&mut self, &Url, Vec<RawCookie<'static>>);
-    fn get_cookies(&self, &Url) -> Vec<&RawCookie<'static>>;
+    fn store_cookies(&mut self, _: &Url, _: Vec<RawCookie<'static>>);
+    fn get_cookies(&self, _: &Url) -> Vec<&RawCookie<'static>>;
     /// FIXME: document
     fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
         req.add_cookies(self.get_cookies(url))
@@ -177,12 +177,12 @@ impl<C> Session<C> {
 #[cfg(test)]
 mod tests {
     use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
-    use cookie_store::CookieStore;
-    use raw_cookie::Cookie as RawCookie;
+    use crate::cookie_store::CookieStore;
+    use crate::raw_cookie::Cookie as RawCookie;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
     use url::Url;
-    use utils::IntoUrl;
+    use crate::utils::IntoUrl;
 
     // stolen example from hyper...
     /// An enum of possible body types for a Request.
