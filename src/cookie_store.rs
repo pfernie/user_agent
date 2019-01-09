@@ -260,24 +260,20 @@ impl CookieStore {
     }
 
     /// An iterator visiting all the __unexpired__ cookies in the store
-    pub fn iter_unexpired<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Cookie<'static>> + 'a> {
-        Box::new(
-            self.cookies
-                .values()
-                .flat_map(|dcs| dcs.values())
-                .flat_map(|pcs| pcs.values())
-                .filter(|c| !c.is_expired()),
-        )
+    pub fn iter_unexpired<'a>(&'a self) -> impl Iterator<Item = &'a Cookie<'static>> + 'a {
+        self.cookies
+            .values()
+            .flat_map(|dcs| dcs.values())
+            .flat_map(|pcs| pcs.values())
+            .filter(|c| !c.is_expired())
     }
 
     /// An iterator visiting all (including __expired__) cookies in the store
-    pub fn iter_any<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Cookie<'static>> + 'a> {
-        Box::new(
-            self.cookies
-                .values()
-                .flat_map(|dcs| dcs.values())
-                .flat_map(|pcs| pcs.values()),
-        )
+    pub fn iter_any<'a>(&'a self) -> impl Iterator<Item = &'a Cookie<'static>> + 'a {
+        self.cookies
+            .values()
+            .flat_map(|dcs| dcs.values())
+            .flat_map(|pcs| pcs.values())
     }
 
     /// Serialize any __unexpired__ and __persistent__ cookies in the store with `cookie_to_string`
