@@ -1,11 +1,12 @@
 use crate::cookie::Cookie;
 use crate::cookie_store::{CookieStore, StoreResult};
-use crate::raw_cookie::Cookie as RawCookie;
+use crate::utils::IntoUrl;
+use ::cookie::Cookie as RawCookie;
+use log::debug;
 use std::io::{BufRead, Write};
 use std::ops::Deref;
 use url::ParseError as ParseUrlError;
 use url::Url;
-use crate::utils::IntoUrl;
 
 /// Trait representing requests which can carry a Cookie header
 pub trait CarriesCookies {
@@ -178,11 +179,12 @@ impl<C> Session<C> {
 mod tests {
     use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
     use crate::cookie_store::CookieStore;
-    use crate::raw_cookie::Cookie as RawCookie;
+    use crate::utils::IntoUrl;
+    use ::cookie::Cookie as RawCookie;
+    use log::debug;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
     use url::Url;
-    use crate::utils::IntoUrl;
 
     // stolen example from hyper...
     /// An enum of possible body types for a Request.

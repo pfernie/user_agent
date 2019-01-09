@@ -1,22 +1,14 @@
-extern crate cookie as raw_cookie;
 #[cfg(test)]
-extern crate env_logger;
-extern crate failure;
-#[macro_use]
-extern crate failure_derive;
-extern crate idna;
-#[macro_use]
-extern crate log;
-extern crate publicsuffix;
-extern crate serde;
-#[cfg_attr(test, macro_use)]
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-extern crate reqwest;
-extern crate time;
-extern crate try_from;
-extern crate url;
+use env_logger;
+use failure::Fail;
+use idna;
+use log;
+use publicsuffix;
+use reqwest;
+use serde;
+use time;
+use try_from;
+use url;
 
 mod cookie;
 pub use crate::cookie::Error as CookieError;

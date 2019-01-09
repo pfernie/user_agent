@@ -1,10 +1,11 @@
 use crate::cookie_store::CookieStore;
-use crate::raw_cookie::Cookie as RawCookie;
+use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
+use crate::utils::IntoUrl;
+use ::cookie::Cookie as RawCookie;
+use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
-use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use url::Url;
-use crate::utils::IntoUrl;
 
 impl HasSetCookie for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {

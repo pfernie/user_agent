@@ -3,12 +3,12 @@ use crate::cookie_domain::{is_match as domain_match, CookieDomain};
 use crate::cookie_path::is_match as path_match;
 use crate::CookieError;
 
+use crate::utils::{is_http_scheme, is_secure};
+use ::cookie::Cookie as RawCookie;
 use publicsuffix;
-use crate::raw_cookie::Cookie as RawCookie;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
 use url::Url;
-use crate::utils::{is_http_scheme, is_secure};
 
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub enum StoreAction {
@@ -343,10 +343,10 @@ mod tests {
     use super::CookieStore;
     use super::{InsertResult, StoreAction};
     use crate::cookie::Cookie;
-    use crate::raw_cookie::Cookie as RawCookie;
+    use crate::CookieError;
+    use ::cookie::Cookie as RawCookie;
     use std::str::from_utf8;
     use time::Tm;
-    use crate::CookieError;
 
     use crate::utils::test as test_utils;
 

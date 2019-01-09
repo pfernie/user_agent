@@ -2,14 +2,15 @@ use crate::cookie_domain::CookieDomain;
 use crate::cookie_expiration::CookieExpiration;
 use crate::cookie_path::CookiePath;
 
-use crate::raw_cookie::{Cookie as RawCookie, CookieBuilder as RawCookieBuilder, ParseError};
+use crate::utils::{is_http_scheme, is_secure};
+use ::cookie::{Cookie as RawCookie, CookieBuilder as RawCookieBuilder, ParseError};
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::{error, fmt};
 use time;
 use try_from::TryFrom;
 use url::Url;
-use crate::utils::{is_http_scheme, is_secure};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
@@ -92,7 +93,7 @@ pub struct Cookie<'a> {
 }
 
 mod serde_raw_cookie {
-    use crate::raw_cookie::Cookie as RawCookie;
+    use ::cookie::Cookie as RawCookie;
     use serde::de::Error;
     use serde::de::Unexpected;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -276,7 +277,7 @@ mod tests {
     use super::Cookie;
     use crate::cookie_domain::CookieDomain;
     use crate::cookie_expiration::CookieExpiration;
-    use crate::raw_cookie::Cookie as RawCookie;
+    use ::cookie::Cookie as RawCookie;
     use time::{now_utc, Duration, Tm};
     use url::Url;
 
@@ -741,10 +742,10 @@ mod serde {
     mod tests {
         use crate::cookie::Cookie;
         use crate::cookie_expiration::CookieExpiration;
-        use serde_json;
-        use time;
         use crate::utils::test as test_utils;
         use crate::utils::test::*;
+        use serde_json::json;
+        use time;
 
         fn encode_decode(c: &Cookie, expected: serde_json::Value) {
             let encoded = serde_json::to_value(c).unwrap();

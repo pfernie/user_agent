@@ -1,8 +1,9 @@
 use std;
 
+use ::cookie::Cookie as RawCookie;
 use idna;
 use publicsuffix;
-use crate::raw_cookie::Cookie as RawCookie;
+use serde_derive::{Deserialize, Serialize};
 use try_from::TryFrom;
 use url::{Host, Url};
 
@@ -179,7 +180,7 @@ impl<'a> From<&'a CookieDomain> for String {
 
 #[cfg(test)]
 mod tests {
-    use crate::raw_cookie::Cookie as RawCookie;
+    use ::cookie::Cookie as RawCookie;
     use try_from::TryFrom;
     use url::Url;
 
