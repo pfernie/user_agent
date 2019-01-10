@@ -29,16 +29,18 @@ pub type InsertResult = Result<StoreAction, CookieError>;
 pub struct CookieStore {
     /// Cookies stored by domain, path, then name
     cookies: HashMap<String, HashMap<String, HashMap<String, Cookie<'static>>>>,
+    /// If set, enables [public suffix](https://tools.ietf.org/html/rfc6265#section-5.3) rejection based on the provided `publicsuffix::List`
     public_suffix_list: Option<publicsuffix::List>,
 }
 
 impl CookieStore {
-    /// FIXME: document
+    /// Add any cookies in the store that are matches for the given `url` to the request `req`.
     pub fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
         req.add_cookies(self.matches(url).into_iter().map(|c| c.deref()).collect())
     }
 
-    /// FIXME: document
+    /// Parse the Set-Cookie headers from the given response `res`, and store them
+    /// for the associated `src_url`
     pub fn take_cookies<R: HasSetCookie>(&mut self, res: &R, src_url: &Url) {
         if let Some(cookies) = res.parse_set_cookie() {
             for cookie in cookies {
@@ -50,6 +52,8 @@ impl CookieStore {
         }
     }
 
+    /// Specify a `publicsuffix::List` for the `CookieStore` to allow [public suffix
+    /// matching](https://tools.ietf.org/html/rfc6265#section-5.3)
     pub fn with_suffix_list(self, psl: publicsuffix::List) -> CookieStore {
         CookieStore {
             cookies: self.cookies,
