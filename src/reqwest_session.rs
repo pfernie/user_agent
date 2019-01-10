@@ -1,15 +1,15 @@
 use crate::cookie_store::CookieStore;
 use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
 use crate::utils::IntoUrl;
-use ::cookie::Cookie as RawCookie;
+use cookie::Cookie as RawCookie;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
 use url::Url;
 
 impl HasSetCookie for reqwest::Response {
-    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
-        if let Some(set_cookie) = self.headers().get(SET_COOKIE) {
+    fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
+        self.headers().get(SET_COOKIE).map(|set_cookie| {
             set_cookie
                 .to_str()
                 .iter()
@@ -21,9 +21,7 @@ impl HasSetCookie for reqwest::Response {
                     }
                 })
                 .collect::<Vec<_>>()
-        } else {
-            vec![]
-        }
+        })
     }
 }
 

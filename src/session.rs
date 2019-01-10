@@ -15,7 +15,7 @@ pub trait CarriesCookies {
 
 /// Trait representing responses which may have a Set-Cookie header
 pub trait HasSetCookie {
-    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>>;
+    fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>>;
 }
 
 /// FIXME: document
@@ -112,7 +112,9 @@ pub trait SessionCookieStore {
 
     /// FIXME: document
     fn take_cookies<R: HasSetCookie>(&mut self, res: &R, src_url: &Url) {
-        self.store_cookies(src_url, res.parse_set_cookie());
+        if let Some(set_cookie) = res.parse_set_cookie() {
+            self.store_cookies(src_url, set_cookie);
+        }
     }
 }
 
@@ -287,8 +289,8 @@ mod tests {
 
     struct TestClientResponse(String, Vec<RawCookie<'static>>);
     impl HasSetCookie for TestClientResponse {
-        fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
-            self.1.clone()
+        fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
+            Some(self.1.clone())
         }
     }
 
