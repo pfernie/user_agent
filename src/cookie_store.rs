@@ -2,12 +2,15 @@ use crate::cookie::Cookie;
 use crate::cookie_domain::{is_match as domain_match, CookieDomain};
 use crate::cookie_path::is_match as path_match;
 use crate::CookieError;
+use crate::session::{CarriesCookies, HasSetCookie};
 
 use crate::utils::{is_http_scheme, is_secure};
 use ::cookie::Cookie as RawCookie;
+use log::debug;
 use publicsuffix;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
+use std::ops::Deref;
 use url::Url;
 
 #[derive(PartialEq, Clone, Debug, Eq)]
@@ -30,6 +33,23 @@ pub struct CookieStore {
 }
 
 impl CookieStore {
+    /// FIXME: document
+    pub fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
+        req.add_cookies(self.matches(url).into_iter().map(|c| c.deref()).collect())
+    }
+
+    /// FIXME: document
+    pub fn take_cookies<R: HasSetCookie>(&mut self, res: &R, src_url: &Url) {
+        if let Some(cookies) = res.parse_set_cookie() {
+            for cookie in cookies {
+                debug!("inserting Set-Cookie '{:?}'", cookie);
+                if let Err(e) = self.insert_raw(&cookie, src_url) {
+                    debug!("unable to store Set-Cookie: {:?}", e);
+                }
+            }
+        }
+    }
+
     pub fn with_suffix_list(self, psl: publicsuffix::List) -> CookieStore {
         CookieStore {
             cookies: self.cookies,

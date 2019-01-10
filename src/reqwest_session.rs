@@ -1,5 +1,5 @@
 use crate::cookie_store::CookieStore;
-use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, HttpMethods};
+use crate::session::{CarriesCookies, HasSetCookie, Session, HttpMethods};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
 use log::debug;

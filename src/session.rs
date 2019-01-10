@@ -2,11 +2,8 @@ use crate::cookie::Cookie;
 use crate::cookie_store::{CookieStore, StoreResult};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
-use log::debug;
 use std::io::{BufRead, Write};
-use std::ops::Deref;
 use url::ParseError as ParseUrlError;
-use url::Url;
 
 /// Trait representing requests which can carry a Cookie header
 pub trait CarriesCookies {
@@ -82,39 +79,6 @@ macro_rules! define_req_with {
     };
 }
 
-pub trait SessionCookieStore {
-    fn store_cookies(&mut self, _: &Url, _: Vec<RawCookie<'static>>);
-    fn get_cookies(&self, _: &Url) -> Vec<&RawCookie<'static>>;
-    /// FIXME: document
-    fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
-        req.add_cookies(self.get_cookies(url))
-    }
-
-    /// FIXME: document
-    fn take_cookies<R: HasSetCookie>(&mut self, res: &R, src_url: &Url) {
-        if let Some(set_cookie) = res.parse_set_cookie() {
-            self.store_cookies(src_url, set_cookie);
-        }
-    }
-}
-
-impl SessionCookieStore for CookieStore {
-    /// FIXME: document
-    fn store_cookies(&mut self, src_url: &Url, cookies: Vec<RawCookie<'static>>) {
-        for cookie in cookies {
-            debug!("inserting Set-Cookie '{:?}'", cookie);
-            if let Err(e) = self.insert_raw(&cookie, src_url) {
-                debug!("unable to store Set-Cookie: {:?}", e);
-            }
-        }
-    }
-
-    /// FIXME: document
-    fn get_cookies(&self, url: &Url) -> Vec<&RawCookie<'static>> {
-        self.matches(url).into_iter().map(|c| c.deref()).collect()
-    }
-}
-
 pub struct Session<C> {
     pub client: C,
     pub store: CookieStore,
@@ -159,7 +123,7 @@ impl<C> Session<C> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, HttpMethods};
+    use super::{CarriesCookies, HasSetCookie, Session, HttpMethods};
     use crate::cookie_store::CookieStore;
     use crate::utils::IntoUrl;
     use cookie::Cookie as RawCookie;
