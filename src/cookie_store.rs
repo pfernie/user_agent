@@ -193,7 +193,7 @@ impl CookieStore {
     /// Converts a `cookie::Cookie` (from the `cookie` crate) into a `user_agent::Cookie` and
     /// inserts it into the store.
     pub fn insert_raw(&mut self, cookie: &RawCookie<'_>, request_url: &Url) -> InsertResult {
-        Cookie::new(cookie, request_url)
+        Cookie::try_from_raw_cookie(cookie, request_url)
             .and_then(|cookie| self.insert(cookie.into_owned(), request_url))
     }
 
