@@ -20,7 +20,7 @@ mod cookie_store;
 pub use crate::cookie_store::CookieStore;
 #[macro_use]
 mod session;
-pub use crate::session::{Session, WithSession};
+pub use crate::session::{Session, HttpMethods};
 pub mod reqwest_session;
 pub use crate::reqwest_session::ReqwestSession;
 mod utils;

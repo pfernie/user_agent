@@ -1,7 +1,7 @@
 use crate::cookie::Cookie;
 use crate::cookie_store::{CookieStore, StoreResult};
 use crate::utils::IntoUrl;
-use ::cookie::Cookie as RawCookie;
+use cookie::Cookie as RawCookie;
 use log::debug;
 use std::io::{BufRead, Write};
 use std::ops::Deref;
@@ -18,52 +18,31 @@ pub trait HasSetCookie {
     fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>>;
 }
 
-/// FIXME: document
-pub trait WithSession<'b> {
+macro_rules! define_method {
+    ($method_fn: ident) => {
+    fn $method_fn<U, P>(
+        &'b mut self,
+        url: U,
+        prepare_and_send: P,
+        ) -> ::std::result::Result<Self::Response, Self::SendError>
+    where
+        U: IntoUrl,
+        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
+    };
+}
+
+/// Trait representing the typical HTTP request methods, to be implemented
+/// for a `Session`
+pub trait HttpMethods<'b> {
     type Request: CarriesCookies;
     type Response: HasSetCookie;
     type SendError: failure::Fail + From<ParseUrlError>;
 
-    fn get_with<U, P>(
-        &'b mut self,
-        url: U,
-        prepare_and_send: P,
-    ) -> ::std::result::Result<Self::Response, Self::SendError>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
-    fn head_with<U, P>(
-        &'b mut self,
-        url: U,
-        prepare_and_send: P,
-    ) -> ::std::result::Result<Self::Response, Self::SendError>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
-    fn delete_with<U, P>(
-        &'b mut self,
-        url: U,
-        prepare_and_send: P,
-    ) -> ::std::result::Result<Self::Response, Self::SendError>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
-    fn post_with<U, P>(
-        &'b mut self,
-        url: U,
-        prepare_and_send: P,
-    ) -> ::std::result::Result<Self::Response, Self::SendError>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
-    fn put_with<U, P>(
-        &'b mut self,
-        url: U,
-        prepare_and_send: P,
-    ) -> ::std::result::Result<Self::Response, Self::SendError>
-    where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
+    define_method!(get_with);
+    define_method!(put_with);
+    define_method!(head_with);
+    define_method!(delete_with);
+    define_method!(post_with);
 }
 
 #[macro_export]
@@ -84,6 +63,7 @@ macro_rules! define_req_with {
                       Ok(res)
                   }
     };
+
     ($with_fn: ident, |$u: ident, &mut $client: ident| $mk_req: expr) => {
         fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> ::std::result::Result<Self::Response, Self::SendError>
             where U: IntoUrl,
@@ -179,10 +159,10 @@ impl<C> Session<C> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
+    use super::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, HttpMethods};
     use crate::cookie_store::CookieStore;
     use crate::utils::IntoUrl;
-    use ::cookie::Cookie as RawCookie;
+    use cookie::Cookie as RawCookie;
     use log::debug;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
@@ -198,16 +178,6 @@ mod tests {
         /// A String has a size, and uses Content-Length.
         BufBody(&'b [u8], usize),
     }
-
-    // impl<'b> Body<'b> {
-    //     fn size(&self) -> Option<u64> {
-    //         match *self {
-    //             Body::SizedBody(_, len) => Some(len),
-    //             Body::BufBody(_, len) => Some(len as u64),
-    //             _ => None
-    //         }
-    //     }
-    // }
 
     impl<'b> Read for Body<'b> {
         #[inline]
@@ -313,7 +283,7 @@ mod tests {
 
     type TestSession = Session<TestClient>;
 
-    impl<'b> WithSession<'b> for TestSession {
+    impl<'b> HttpMethods<'b> for TestSession {
         type Request = TestClientRequest<'b>;
         type Response = TestClientResponse;
         type SendError = TestError;

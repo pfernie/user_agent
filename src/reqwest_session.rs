@@ -1,5 +1,5 @@
 use crate::cookie_store::CookieStore;
-use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, WithSession};
+use crate::session::{CarriesCookies, HasSetCookie, Session, SessionCookieStore, HttpMethods};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
 use log::debug;
@@ -42,14 +42,13 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
-impl<'b> WithSession<'b> for ReqwestSession {
+impl<'b> HttpMethods<'b> for ReqwestSession {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
     type SendError = super::ReqwestSessionError;
 
     define_req_with!(get_with, |url, &client| client.get(url.clone()));
     define_req_with!(head_with, |url, &client| client.head(url.clone()));
-
     define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
     define_req_with!(post_with, |url, &client| client.post(url.clone()));
     define_req_with!(put_with, |url, &client| client.put(url.clone()));
@@ -74,7 +73,7 @@ mod tests {
     use reqwest;
 
     use super::ReqwestSession;
-    use crate::session::WithSession;
+    use crate::session::HttpMethods;
 
     macro_rules! dump {
         ($e: expr, $i: ident) => {{
