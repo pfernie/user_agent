@@ -1,5 +1,4 @@
-use crate::cookie::Cookie;
-use crate::cookie_store::{CookieStore, StoreResult};
+use cookie_store::{Cookie, CookieStore};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
 use std::io::{BufRead, Write};
@@ -72,7 +71,7 @@ impl<C: SessionClient> Session<C> {
         }
     }
 
-    pub fn load<R, E, F>(client: C, reader: R, cookie_from_str: F) -> StoreResult<Session<C>>
+    pub fn load<R, E, F>(client: C, reader: R, cookie_from_str: F) -> Result<Session<C>, failure::Error>
     where
         R: BufRead,
         F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
@@ -82,12 +81,12 @@ impl<C: SessionClient> Session<C> {
         Ok(Session { client, store })
     }
 
-    pub fn load_json<R: BufRead>(client: C, reader: R) -> StoreResult<Session<C>> {
+    pub fn load_json<R: BufRead>(client: C, reader: R) -> Result<Session<C>, failure::Error> {
         let store = CookieStore::load_json(reader)?;
         Ok(Session { client, store })
     }
 
-    pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> StoreResult<()>
+    pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> Result<(), failure::Error>
     where
         W: Write,
         F: Fn(&Cookie<'_>) -> ::std::result::Result<String, E>,
@@ -96,7 +95,7 @@ impl<C: SessionClient> Session<C> {
         self.store.save(writer, cookie_to_string)
     }
 
-    pub fn save_json<W: Write>(&self, writer: &mut W) -> StoreResult<()> {
+    pub fn save_json<W: Write>(&self, writer: &mut W) -> Result<(), failure::Error> {
         self.store.save_json(writer)
     }
 
@@ -137,7 +136,7 @@ impl<C: SessionClient> Session<C> {
 #[cfg(test)]
 mod tests {
     use super::{Session, SessionClient, SessionRequest, SessionResponse};
-    use crate::cookie_store::CookieStore;
+    use cookie_store::CookieStore;
     use cookie::Cookie as RawCookie;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;

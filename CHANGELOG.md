@@ -1,3 +1,9 @@
+= v0.6.0 =
+Split `CookieStore` into separate [crate](https://crates.io/crates/cookie_store)
+
+= v0.5.0 =
+Refactor and reduce some trait and macro usage
+
 = v0.4.0 =
 * Update to Rust 2018 edition
 
