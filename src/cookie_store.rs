@@ -2,7 +2,6 @@ use crate::cookie::Cookie;
 use crate::cookie_domain::{is_match as domain_match, CookieDomain};
 use crate::cookie_path::is_match as path_match;
 use crate::CookieError;
-use crate::session::{CarriesCookies, HasSetCookie};
 
 use crate::utils::{is_http_scheme, is_secure};
 use ::cookie::Cookie as RawCookie;
@@ -34,20 +33,21 @@ pub struct CookieStore {
 }
 
 impl CookieStore {
-    /// Add any cookies in the store that are matches for the given `url` to the request `req`.
-    pub fn apply_cookies<Q: CarriesCookies>(&self, req: Q, url: &Url) -> Q {
-        req.add_cookies(self.matches(url).into_iter().map(|c| c.deref()).collect())
+    /// Return an `Iterator` of the cookies for `url` in the store
+    pub fn get_request_cookies(&self, url: &Url) -> impl Iterator<Item = &RawCookie<'static>> {
+        self.matches(url).into_iter().map(|c| c.deref())
     }
 
-    /// Parse the Set-Cookie headers from the given response `res`, and store them
-    /// for the associated `src_url`
-    pub fn take_cookies<R: HasSetCookie>(&mut self, res: &R, src_url: &Url) {
-        if let Some(cookies) = res.parse_set_cookie() {
-            for cookie in cookies {
-                debug!("inserting Set-Cookie '{:?}'", cookie);
-                if let Err(e) = self.insert_raw(&cookie, src_url) {
-                    debug!("unable to store Set-Cookie: {:?}", e);
-                }
+    /// Store the `cookies` received from `url`
+    pub fn store_response_cookies<I: Iterator<Item = RawCookie<'static>>>(
+        &mut self,
+        cookies: I,
+        url: &Url,
+    ) {
+        for cookie in cookies {
+            debug!("inserting Set-Cookie '{:?}'", cookie);
+            if let Err(e) = self.insert_raw(&cookie, url) {
+                debug!("unable to store Set-Cookie: {:?}", e);
             }
         }
     }

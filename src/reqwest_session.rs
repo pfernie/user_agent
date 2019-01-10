@@ -1,13 +1,12 @@
 use crate::cookie_store::CookieStore;
-use crate::session::{CarriesCookies, HasSetCookie, Session, HttpMethods};
-use crate::utils::IntoUrl;
+use crate::session::{Session, SessionClient, SessionRequest, SessionResponse};
 use cookie::Cookie as RawCookie;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
 use url::Url;
 
-impl HasSetCookie for reqwest::Response {
+impl SessionResponse for reqwest::Response {
     fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
         self.headers().get(SET_COOKIE).map(|set_cookie| {
             set_cookie
@@ -23,9 +22,13 @@ impl HasSetCookie for reqwest::Response {
                 .collect::<Vec<_>>()
         })
     }
+
+    fn final_url(&self) -> Option<&Url> {
+        Some(self.url())
+    }
 }
 
-impl CarriesCookies for reqwest::RequestBuilder {
+impl SessionRequest for reqwest::RequestBuilder {
     fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
         if cookies.is_empty() {
             debug!("no cookies to add to request");
@@ -42,16 +45,27 @@ impl CarriesCookies for reqwest::RequestBuilder {
 }
 
 pub type ReqwestSession = Session<reqwest::Client>;
-impl<'b> HttpMethods<'b> for ReqwestSession {
+
+impl SessionClient for reqwest::Client {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
     type SendError = super::ReqwestSessionError;
 
-    define_req_with!(get_with, |url, &client| client.get(url.clone()));
-    define_req_with!(head_with, |url, &client| client.head(url.clone()));
-    define_req_with!(delete_with, |url, &client| client.delete(url.clone()));
-    define_req_with!(post_with, |url, &client| client.post(url.clone()));
-    define_req_with!(put_with, |url, &client| client.put(url.clone()));
+    fn get_request(&self, url: &Url) -> Self::Request {
+        self.get(url.clone())
+    }
+    fn put_request(&self, url: &Url) -> Self::Request {
+        self.put(url.clone())
+    }
+    fn head_request(&self, url: &Url) -> Self::Request {
+        self.head(url.clone())
+    }
+    fn delete_request(&self, url: &Url) -> Self::Request {
+        self.delete(url.clone())
+    }
+    fn post_request(&self, url: &Url) -> Self::Request {
+        self.post(url.clone())
+    }
 }
 
 impl ::std::ops::Deref for ReqwestSession {
@@ -73,7 +87,6 @@ mod tests {
     use reqwest;
 
     use super::ReqwestSession;
-    use crate::session::HttpMethods;
 
     macro_rules! dump {
         ($e: expr, $i: ident) => {{

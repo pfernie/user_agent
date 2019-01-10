@@ -3,88 +3,68 @@ use crate::cookie_store::{CookieStore, StoreResult};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
 use std::io::{BufRead, Write};
-use url::ParseError as ParseUrlError;
+use url::{ParseError as ParseUrlError, Url};
 
-/// Trait representing requests which can carry a Cookie header
-pub trait CarriesCookies {
+/// Trait representing requests which can carry a Cookie header, appropriate
+/// for use with a `Session`
+pub trait SessionRequest {
+    /// Add the given set of cookies to the request
     fn add_cookies(self, _: Vec<&RawCookie<'static>>) -> Self;
 }
 
-/// Trait representing responses which may have a Set-Cookie header
-pub trait HasSetCookie {
+/// Trait representing responses which may have a Set-Cookie header, appropriate
+/// for use with a `Session`
+pub trait SessionResponse {
+    /// Parse the Set-Cookie header and return the set of cookies if present
     fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>>;
+    /// Return the final Url for the response. In cases such as redirects,
+    /// such Url may differ from the Request Url. May return `None` if unavailable.
+    fn final_url(&self) -> Option<&Url>;
 }
 
-macro_rules! define_method {
-    ($method_fn: ident) => {
-    fn $method_fn<U, P>(
-        &'b mut self,
+macro_rules! define_with_fn {
+    ($with_fn: ident, $request_fn: ident) => {
+    pub fn $with_fn<U, P>(
+        &mut self,
         url: U,
         prepare_and_send: P,
-        ) -> ::std::result::Result<Self::Response, Self::SendError>
+    ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
     where
-        U: IntoUrl,
-        P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>;
-    };
+        P: FnOnce(<C as SessionClient>::Request) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>,
+        U: IntoUrl
+    {
+        let url = url.into_url()?;
+        let request = self.client.$request_fn(&url);
+        self.run_request(request, &url, prepare_and_send)
+    }
+    }
 }
 
 /// Trait representing the typical HTTP request methods, to be implemented
-/// for a `Session`
-pub trait HttpMethods<'b> {
-    type Request: CarriesCookies;
-    type Response: HasSetCookie;
-    type SendError: failure::Fail + From<ParseUrlError>;
+/// for clients appropriate for use in a `Session`
+pub trait SessionClient {
+    type Request: SessionRequest;
+    type Response: SessionResponse;
+    type SendError: From<ParseUrlError>;
 
-    define_method!(get_with);
-    define_method!(put_with);
-    define_method!(head_with);
-    define_method!(delete_with);
-    define_method!(post_with);
+    /// Create a `Self::Request` for a GET request
+    fn get_request(&self, url: &Url) -> Self::Request;
+    /// Create a `Self::Request` for a PUT request
+    fn put_request(&self, url: &Url) -> Self::Request;
+    /// Create a `Self::Request` for a HEAD request
+    fn head_request(&self, url: &Url) -> Self::Request;
+    /// Create a `Self::Request` for a DELETE request
+    fn delete_request(&self, url: &Url) -> Self::Request;
+    /// Create a `Self::Request` for a POST request
+    fn post_request(&self, url: &Url) -> Self::Request;
 }
 
-#[macro_export]
-macro_rules! define_req_with {
-    ($with_fn: ident, |$u: ident, &$client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> ::std::result::Result<Self::Response, Self::SendError>
-            where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
-                  {
-                      let $u: Url = $u.into_url()?;
-                      let res = {
-                          let $client = &self.client;
-                          debug!("using client {:p}", $client);
-                          let req = self.store.apply_cookies($mk_req, &$u);
-                          prepare_and_send(req)?
-                      };
-                      self.store.take_cookies(&res, &$u);
-                      Ok(res)
-                  }
-    };
-
-    ($with_fn: ident, |$u: ident, &mut $client: ident| $mk_req: expr) => {
-        fn $with_fn<U, P>(&'b mut self, $u: U, prepare_and_send: P) -> ::std::result::Result<Self::Response, Self::SendError>
-            where U: IntoUrl,
-                  P: FnOnce(Self::Request) -> ::std::result::Result<Self::Response, Self::SendError>
-                  {
-                      let $u: Url = $u.into_url()?;
-                      let res = {
-                          let $client = &mut self.client;
-                          debug!("using client {:p}", $client);
-                          let req = self.store.apply_cookies($mk_req, &$u);
-                          prepare_and_send(req)?
-                      };
-                      self.store.take_cookies(&res, &$u);
-                      Ok(res)
-                  }
-    };
-}
-
-pub struct Session<C> {
+pub struct Session<C: SessionClient> {
     pub client: C,
     pub store: CookieStore,
 }
 
-impl<C> Session<C> {
+impl<C: SessionClient> Session<C> {
     pub fn new(client: C) -> Self {
         Session {
             client,
@@ -119,15 +99,46 @@ impl<C> Session<C> {
     pub fn save_json<W: Write>(&self, writer: &mut W) -> StoreResult<()> {
         self.store.save_json(writer)
     }
+
+    define_with_fn!(get_with, get_request);
+    define_with_fn!(put_with, put_request);
+    define_with_fn!(head_with, head_request);
+    define_with_fn!(delete_with, delete_request);
+    define_with_fn!(post_with, post_request);
+
+    fn run_request<P>(
+        &mut self,
+        request: <C as SessionClient>::Request,
+        url: &Url,
+        prepare_and_send: P,
+    ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
+    where
+        P: FnOnce(
+            <C as SessionClient>::Request,
+        ) -> ::std::result::Result<
+            <C as SessionClient>::Response,
+            <C as SessionClient>::SendError,
+        >,
+    {
+        let response = {
+            let cookies = self.store.get_request_cookies(url).collect();
+            let request = request.add_cookies(cookies);
+            prepare_and_send(request)?
+        };
+        if let Some(cookies) = response.parse_set_cookie() {
+            let final_url: &Url = response.final_url().unwrap_or(url);
+            self.store
+                .store_response_cookies(cookies.into_iter(), final_url);
+        }
+        Ok(response)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{CarriesCookies, HasSetCookie, Session, HttpMethods};
+    use super::{Session, SessionClient, SessionRequest, SessionResponse};
     use crate::cookie_store::CookieStore;
-    use crate::utils::IntoUrl;
     use cookie::Cookie as RawCookie;
-    use log::debug;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
     use url::Url;
@@ -182,7 +193,7 @@ mod tests {
         }
     }
 
-    impl<'b> CarriesCookies for TestClientRequest<'b> {
+    impl<'b> SessionRequest for TestClientRequest<'b> {
         fn add_cookies(mut self, cookies: Vec<&RawCookie<'static>>) -> Self {
             for cookie in cookies.into_iter() {
                 self.cookies.push(cookie.clone());
@@ -222,9 +233,13 @@ mod tests {
     }
 
     struct TestClientResponse(String, Vec<RawCookie<'static>>);
-    impl HasSetCookie for TestClientResponse {
+    impl SessionResponse for TestClientResponse {
         fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
             Some(self.1.clone())
+        }
+
+        fn final_url(&self) -> Option<&Url> {
+            None
         }
     }
 
@@ -245,19 +260,29 @@ mod tests {
         }
     }
 
-    type TestSession = Session<TestClient>;
-
-    impl<'b> HttpMethods<'b> for TestSession {
+    impl<'b> SessionClient for &'b TestClient {
         type Request = TestClientRequest<'b>;
         type Response = TestClientResponse;
         type SendError = TestError;
 
-        define_req_with!(get_with, |url, &client| client.request(&url));
-        define_req_with!(head_with, |url, &client| client.request(&url));
-        define_req_with!(delete_with, |url, &client| client.request(&url));
-        define_req_with!(post_with, |url, &client| client.request(&url));
-        define_req_with!(put_with, |url, &client| client.request(&url));
+        fn get_request(&self, url: &Url) -> Self::Request {
+            self.request(url)
+        }
+        fn put_request(&self, url: &Url) -> Self::Request {
+            self.request(url)
+        }
+        fn head_request(&self, url: &Url) -> Self::Request {
+            self.request(url)
+        }
+        fn delete_request(&self, url: &Url) -> Self::Request {
+            self.request(url)
+        }
+        fn post_request(&self, url: &Url) -> Self::Request {
+            self.request(url)
+        }
     }
+
+    type TestSession<'c> = Session<&'c TestClient>;
 
     #[derive(Debug, Clone, PartialEq)]
     struct TestError;
@@ -356,7 +381,7 @@ mod tests {
     }
 
     macro_rules! load_session {
-        ($s: ident, $c: ident, $sd: ident) => {
+        ($s: ident, $c: expr, $sd: ident) => {
             let mut $s = Session::load_json($c, &$sd[..]).unwrap();
         };
     }
@@ -369,14 +394,14 @@ mod tests {
         }};
     }
 
-    impl ::std::ops::Deref for TestSession {
+    impl<'s> ::std::ops::Deref for TestSession<'s> {
         type Target = CookieStore;
         fn deref(&self) -> &Self::Target {
             &self.store
         }
     }
 
-    impl ::std::ops::DerefMut for TestSession {
+    impl<'s> ::std::ops::DerefMut for TestSession<'s> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.store
         }
@@ -386,7 +411,7 @@ mod tests {
     fn client() {
         let session1 = {
             // init & try http://www.example.com
-            let mut s = TestSession::new(TestClient);
+            let mut s = TestSession::new(&TestClient);
             let url = Url::parse("http://www.example.com").unwrap();
 
             s.parse("0=_", &url).unwrap();
@@ -457,7 +482,7 @@ mod tests {
 
         let session2 = {
             // try https://www.example.com - secure
-            load_session!(s, TestClient, session1);
+            load_session!(s, &TestClient, session1);
             not_has!(s, "0"); // non-persistent cookie
             has_pers!(s, "www.example.com", "/", "1"); // was an initial persistent cookie
             has_value!(s, "www.example.com", "/", "1", "sess1");
@@ -516,7 +541,7 @@ mod tests {
 
         let session3 = {
             // try https://foo.example.com - secure & foo. subdomain
-            load_session!(s, TestClient, session2);
+            load_session!(s, &TestClient, session2);
             not_has!(s, "0");
             has_pers!(s, "www.example.com", "/", "1");
             has_value!(s, "www.example.com", "/", "1", "sess2");
@@ -579,7 +604,7 @@ mod tests {
 
         let session4 = {
             // try https://www.example.com/foo - secure & path
-            load_session!(s, TestClient, session3);
+            load_session!(s, &TestClient, session3);
             not_has!(s, "0");
             has_pers!(s, "www.example.com", "/", "1");
             has_value!(s, "www.example.com", "/", "1", "sess2");
@@ -622,7 +647,7 @@ mod tests {
 
         let session5 = {
             // try https://www.example.com/foo/bar - secure & deeper path
-            load_session!(s, TestClient, session4);
+            load_session!(s, &TestClient, session4);
             not_has!(s, "0");
             has_pers!(s, "www.example.com", "/", "1");
             has_value!(s, "www.example.com", "/", "1", "sess2");
@@ -664,7 +689,7 @@ mod tests {
             save_session!(s)
         };
 
-        load_session!(s, TestClient, session5);
+        load_session!(s, &TestClient, session5);
         s.get_with("https://www.example.com/", |r| {
             let incoming = r.cookies.clone();
             not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
