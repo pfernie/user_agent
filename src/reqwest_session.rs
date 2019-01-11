@@ -1,6 +1,5 @@
 use crate::session::{Session, SessionClient, SessionRequest, SessionResponse};
 use cookie::Cookie as RawCookie;
-use cookie_store::CookieStore;
 use failure::Fail;
 use log::debug;
 use reqwest;
@@ -93,19 +92,6 @@ impl SessionClient for reqwest::Client {
     }
 }
 
-impl ::std::ops::Deref for ReqwestSession {
-    type Target = CookieStore;
-    fn deref(&self) -> &Self::Target {
-        &self.store
-    }
-}
-
-impl ::std::ops::DerefMut for ReqwestSession {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.store
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use env_logger;
@@ -119,7 +105,7 @@ mod tests {
             use time::now_utc;
             println!("");
             println!("==== {}: {} ====", $e, now_utc().rfc3339());
-            for c in $i.iter_any() {
+            for c in $i.store.iter_any() {
                 println!(
                     "{} {}",
                     if c.is_expired() {
@@ -139,37 +125,23 @@ mod tests {
 
     #[test]
     fn test_gets() {
-        use super::ReqwestSessionError;
-
         env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());
         dump!("init", s);
-        s.get_with("http://www.google.com", |req| {
-            req.send().map_err(ReqwestSessionError::from)
-        })
-        .expect("www.google.com get_with failed");
-        let c1 = s.iter_unexpired().count();
+        s.get("http://www.google.com").expect("www.google.com get failed");
+        let c1 = s.store.iter_unexpired().count();
         assert!(c1 > 0);
-        s.get_with("http://www.google.com", |req| {
-            req.send().map_err(ReqwestSessionError::from)
-        })
-        .expect("www.google.com get_with failed");
-        assert!(c1 == s.iter_unexpired().count()); // no new cookies on re-request
+        s.get("http://www.google.com").expect("www.google.com get failed");
+        assert!(c1 == s.store.iter_unexpired().count()); // no new cookies on re-request
         dump!("after google", s);
-        s.get_with("http://www.yahoo.com", |req| {
-            req.send().map_err(ReqwestSessionError::from)
-        })
-        .expect("www.yahoo.com get_with failed");
+        s.get("http://www.yahoo.com").expect("www.yahoo.com get failed");
         dump!("after yahoo", s);
-        let c2 = s.iter_unexpired().count();
+        let c2 = s.store.iter_unexpired().count();
         assert!(c2 > 0);
         assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get_with("http://www.msn.com", |req| {
-            req.send().map_err(ReqwestSessionError::from)
-        })
-        .expect("www.msn.com get_with failed");
+        s.get("http://www.msn.com").expect("www.msn.com get failed");
         dump!("after msn", s);
-        let c3 = s.iter_unexpired().count();
+        let c3 = s.store.iter_unexpired().count();
         assert!(c3 > 0);
         assert!(c3 > c2);
     }

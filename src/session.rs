@@ -26,15 +26,31 @@ macro_rules! define_with_fn {
     pub fn $with_fn<U, P>(
         &mut self,
         url: U,
-        prepare_and_send: P,
+        prepare: P,
     ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
     where
-        P: FnOnce(<C as SessionClient>::Request) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>,
+        P: FnOnce(<C as SessionClient>::Request) -> <C as SessionClient>::Request,
         U: IntoUrl
     {
         let url = url.into_url()?;
         let request = self.client.$request_fn(&url);
-        self.run_request(request, &url, prepare_and_send)
+        self.run_request(request, &url, prepare)
+    }
+    }
+}
+
+macro_rules! define_send_fn {
+    ($send_fn: ident, $request_fn: ident) => {
+    pub fn $send_fn<U>(
+        &mut self,
+        url: U,
+    ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
+    where
+        U: IntoUrl
+    {
+        let url = url.into_url()?;
+        let request = self.client.$request_fn(&url);
+        self.run_request(request, &url, |req| req)
     }
     }
 }
@@ -57,7 +73,7 @@ pub trait SessionClient {
     /// Create a `Self::Request` for a POST request
     fn post_request(&self, url: &Url) -> Self::Request;
 
-    /// Send `request` with not further preparation
+    /// Send `request` with no further preparation
     fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError>;
 }
 
@@ -112,29 +128,33 @@ impl<C: SessionClient> Session<C> {
     define_with_fn!(delete_with, delete_request);
     define_with_fn!(post_with, post_request);
 
+    define_send_fn!(get, get_request);
+    define_send_fn!(put, put_request);
+    define_send_fn!(head, head_request);
+    define_send_fn!(delete, delete_request);
+    define_send_fn!(post, post_request);
+
     fn run_request<P>(
         &mut self,
         request: <C as SessionClient>::Request,
         url: &Url,
-        prepare_and_send: P,
+        prepare: P,
     ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
     where
         P: FnOnce(
             <C as SessionClient>::Request,
-        ) -> ::std::result::Result<
-            <C as SessionClient>::Response,
-            <C as SessionClient>::SendError,
-        >,
+        ) -> <C as SessionClient>::Request,
     {
+        let Session {ref client, ref mut store} = self;
         let response = {
-            let cookies = self.store.get_request_cookies(url).collect();
+            let cookies = store.get_request_cookies(url).collect();
             let request = request.add_cookies(cookies);
-            prepare_and_send(request)?
+            let request = prepare(request);
+            client.send(request)?
         };
         if let Some(cookies) = response.parse_set_cookie() {
             let final_url: &Url = response.final_url().unwrap_or(url);
-            self.store
-                .store_response_cookies(cookies.into_iter(), final_url);
+            store.store_response_cookies(cookies.into_iter(), final_url);
         }
         Ok(response)
     }
@@ -144,7 +164,6 @@ impl<C: SessionClient> Session<C> {
 mod tests {
     use super::{Session, SessionClient, SessionRequest, SessionResponse};
     use cookie::Cookie as RawCookie;
-    use cookie_store::CookieStore;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
     use url::Url;
@@ -286,6 +305,10 @@ mod tests {
         fn post_request(&self, url: &Url) -> Self::Request {
             self.request(url)
         }
+
+        fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError> {
+            request.send()
+        }
     }
 
     type TestSession<'c> = Session<&'c TestClient>;
@@ -358,31 +381,31 @@ mod tests {
 
     macro_rules! has_sess {
         ($store: ident, $d: expr, $p: expr, $n: expr) => {
-            assert!(!$store.get($d, $p, $n).unwrap().is_persistent());
+            assert!(!$store.store.get($d, $p, $n).unwrap().is_persistent());
         };
     }
 
     macro_rules! has_pers {
         ($store: ident, $d: expr, $p: expr, $n: expr) => {
-            assert!($store.get($d, $p, $n).unwrap().is_persistent());
+            assert!($store.store.get($d, $p, $n).unwrap().is_persistent());
         };
     }
 
     macro_rules! has_expired {
         ($store: ident, $d: expr, $p: expr, $n: expr) => {
-            assert!($store.contains_any($d, $p, $n) && !$store.contains($d, $p, $n));
+            assert!($store.store.contains_any($d, $p, $n) && !$store.store.contains($d, $p, $n));
         };
     }
 
     macro_rules! has_value {
         ($store: ident, $d: expr, $p: expr, $n: expr, $v: expr) => {
-            assert_eq!($store.get($d, $p, $n).unwrap().value(), $v);
+            assert_eq!($store.store.get($d, $p, $n).unwrap().value(), $v);
         };
     }
 
     macro_rules! not_has {
         ($store: ident, $n: expr) => {
-            assert_eq!($store.iter_any().filter(|c| c.name() == $n).count(), 0);
+            assert_eq!($store.store.iter_any().filter(|c| c.name() == $n).count(), 0);
         };
     }
 
@@ -400,19 +423,6 @@ mod tests {
         }};
     }
 
-    impl<'s> ::std::ops::Deref for TestSession<'s> {
-        type Target = CookieStore;
-        fn deref(&self) -> &Self::Target {
-            &self.store
-        }
-    }
-
-    impl<'s> ::std::ops::DerefMut for TestSession<'s> {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.store
-        }
-    }
-
     #[test]
     fn client() {
         let session1 = {
@@ -420,16 +430,16 @@ mod tests {
             let mut s = TestSession::new(&TestClient);
             let url = Url::parse("http://www.example.com").unwrap();
 
-            s.parse("0=_", &url).unwrap();
-            s.parse("1=a; Max-Age=120", &url).unwrap();
-            s.parse("2=b; Max-Age=120", &url).unwrap();
-            s.parse("secure=zz; Max-Age=120; Secure", &url).unwrap();
-            s.parse(
+            s.store.parse("0=_", &url).unwrap();
+            s.store.parse("1=a; Max-Age=120", &url).unwrap();
+            s.store.parse("2=b; Max-Age=120", &url).unwrap();
+            s.store.parse("secure=zz; Max-Age=120; Secure", &url).unwrap();
+            s.store.parse(
                 "foo_domain=zzz",
                 &Url::parse("http://foo.example.com").unwrap(),
             )
             .unwrap(); // should not be included in our www.example.com request
-            s.parse(
+            s.store.parse(
                 "foo_domain_pers=zzz; Max-Age=120",
                 &Url::parse("http://foo.example.com").unwrap(),
             )
@@ -463,7 +473,7 @@ mod tests {
                         RawCookie::parse("6=f; Domain=example.com").unwrap(), // should be able to set for a higher domain
                         RawCookie::parse("7=g; Max-Age=300").unwrap(), // new persistent (5min) cookie
                     ]);
-                    r.send()
+                    r
                 })
                 .unwrap();
             assert_eq!("body was: 'this is the body'", resp.body());
@@ -523,7 +533,7 @@ mod tests {
                         RawCookie::parse("2=B; Max-Age=120; Path=/foo").unwrap(), // re-add the 2-cookie, but for a sub-path
                         RawCookie::parse("8=h; Domain=example.com").unwrap(), // should be able to set persistent for a higher domain
                     ]);
-                    r.send()
+                    r
                 })
                 .unwrap();
             assert_eq!("body was: 'this is the second body'", resp.body());
@@ -583,7 +593,7 @@ mod tests {
                         RawCookie::parse("9=v; Domain=example.com; Path=/foo; Max-Age=120; Secure")
                             .unwrap(), // this secure cookie is for example.com/foo
                     ]);
-                    r.send()
+                    r
                 })
                 .unwrap();
             assert_eq!("no body sent", resp.body());
@@ -645,7 +655,7 @@ mod tests {
                 not_in_vec!(incoming, "foo_domain");
                 not_in_vec!(incoming, "foo_domain_pers");
                 // no outgoing cookies
-                r.send()
+                r
             })
             .unwrap();
             save_session!(s)
@@ -689,7 +699,7 @@ mod tests {
                 not_in_vec!(incoming, "foo_domain");
                 not_in_vec!(incoming, "foo_domain_pers");
                 // no outgoing cookies
-                r.send()
+                r
             })
             .unwrap();
             save_session!(s)
@@ -700,14 +710,14 @@ mod tests {
             let incoming = r.cookies.clone();
             not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
                                         // no outgoing cookies
-            r.send()
+            r
         })
         .unwrap();
         s.get_with("https://www.example.com/bar", |r| {
             let incoming = r.cookies.clone();
             not_in_vec!(incoming, "9"); // validating that we don't see /foo cookie
                                         // no outgoing cookies
-            r.send()
+            r
         })
         .unwrap();
     }

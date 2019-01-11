@@ -1,3 +1,10 @@
+= v0.6.3 =
+* Add `SessionClient::send()` fn, and simplify the `{get,post,...}_with` functions.
+  * BREAKING: `*_with` fns now take a `prepare` `FnOnce` returning `Self::Request`,
+    instead of `prepare_and_send` which returned `Result<Self::Response, Self::SendError>`
+* Introduce convenience `get`, `post`, etc. methods
+* BREAKING: Remove various `Deref` impls
+
 = v0.6.0 =
 Split `CookieStore` into separate [crate](https://crates.io/crates/cookie_store)
 
