@@ -1,6 +1,7 @@
-use crate::cookie_store::CookieStore;
 use crate::session::{Session, SessionClient, SessionRequest, SessionResponse};
 use cookie::Cookie as RawCookie;
+use cookie_store::CookieStore;
+use failure::Fail;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
@@ -44,12 +45,32 @@ impl SessionRequest for reqwest::RequestBuilder {
     }
 }
 
+#[derive(Debug, Fail)]
+pub enum ReqwestSessionError {
+    #[fail(display = "URL parse error: {}", _0)]
+    ParseUrlError(url::ParseError),
+    #[fail(display = "Reqwest error: {}", _0)]
+    ReqwestError(reqwest::Error),
+}
+
+impl From<url::ParseError> for ReqwestSessionError {
+    fn from(e: url::ParseError) -> Self {
+        ReqwestSessionError::ParseUrlError(e)
+    }
+}
+
+impl From<reqwest::Error> for ReqwestSessionError {
+    fn from(e: reqwest::Error) -> Self {
+        ReqwestSessionError::ReqwestError(e)
+    }
+}
+
 pub type ReqwestSession = Session<reqwest::Client>;
 
 impl SessionClient for reqwest::Client {
     type Request = reqwest::RequestBuilder;
     type Response = reqwest::Response;
-    type SendError = super::ReqwestSessionError;
+    type SendError = ReqwestSessionError;
 
     fn get_request(&self, url: &Url) -> Self::Request {
         self.get(url.clone())
@@ -114,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_gets() {
-        use super::super::ReqwestSessionError;
+        use super::ReqwestSessionError;
 
         env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());

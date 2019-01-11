@@ -3,7 +3,7 @@
 
 Provides the concept of a user agent session, storing and retrieving cookies over multiple HTTP requests (a `Session`).
 
-This is a small crate leveraging [cookie_store](https://crates.io/crates/cookie_store).
+Included is an implementation of `Session` using a [reqwest](https://crates.io/crates/reqwest) `reqwest::Client`.
 
 ## License
 This project is licensed and distributed under the terms of both the MIT license and Apache License (Version 2.0).

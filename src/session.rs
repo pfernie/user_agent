@@ -1,6 +1,6 @@
-use cookie_store::{Cookie, CookieStore};
 use crate::utils::IntoUrl;
 use cookie::Cookie as RawCookie;
+use cookie_store::{Cookie, CookieStore};
 use std::io::{BufRead, Write};
 use url::{ParseError as ParseUrlError, Url};
 
@@ -71,7 +71,11 @@ impl<C: SessionClient> Session<C> {
         }
     }
 
-    pub fn load<R, E, F>(client: C, reader: R, cookie_from_str: F) -> Result<Session<C>, failure::Error>
+    pub fn load<R, E, F>(
+        client: C,
+        reader: R,
+        cookie_from_str: F,
+    ) -> Result<Session<C>, failure::Error>
     where
         R: BufRead,
         F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
@@ -136,8 +140,8 @@ impl<C: SessionClient> Session<C> {
 #[cfg(test)]
 mod tests {
     use super::{Session, SessionClient, SessionRequest, SessionResponse};
-    use cookie_store::CookieStore;
     use cookie::Cookie as RawCookie;
+    use cookie_store::CookieStore;
     use std::io::{self, Read};
     use url::ParseError as ParseUrlError;
     use url::Url;
