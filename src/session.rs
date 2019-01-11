@@ -56,6 +56,9 @@ pub trait SessionClient {
     fn delete_request(&self, url: &Url) -> Self::Request;
     /// Create a `Self::Request` for a POST request
     fn post_request(&self, url: &Url) -> Self::Request;
+
+    /// Send `request` with not further preparation
+    fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError>;
 }
 
 pub struct Session<C: SessionClient> {

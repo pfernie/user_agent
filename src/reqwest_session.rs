@@ -87,6 +87,10 @@ impl SessionClient for reqwest::Client {
     fn post_request(&self, url: &Url) -> Self::Request {
         self.post(url.clone())
     }
+
+    fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError> {
+        request.send().map_err(ReqwestSessionError::from)
+    }
 }
 
 impl ::std::ops::Deref for ReqwestSession {
