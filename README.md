@@ -1,6 +1,8 @@
 [![Build Status](https://travis-ci.org/pfernie/user_agent.svg?branch=master)](https://travis-ci.org/pfernie/user_agent)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/user_agent)
 
+[Documentation](https://docs.rs/user_agent/)
+
 Provides the concept of a user agent session, storing and retrieving cookies over multiple HTTP requests (a `Session`).
 
 Included is an implementation of `Session` using a [reqwest](https://crates.io/crates/reqwest) `reqwest::Client`.
