@@ -7,20 +7,33 @@ use reqwest::header::{COOKIE, SET_COOKIE};
 use url::Url;
 
 impl SessionResponse for reqwest::Response {
-    fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
-        self.headers().get(SET_COOKIE).map(|set_cookie| {
-            set_cookie
-                .to_str()
-                .iter()
-                .filter_map(|h_c| match RawCookie::parse(h_c.to_string()) {
-                    Ok(raw_cookie) => Some(raw_cookie),
-                    Err(e) => {
-                        debug!("error parsing Set-Cookie {:?}: {:?}", h_c, e);
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-        })
+    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
+        self.headers()
+            .get_all(SET_COOKIE)
+            .iter()
+            .filter_map(|set_cookie| {
+                set_cookie
+                    .to_str()
+                    .map_err(|e| {
+                        debug!(
+                            "error parsing Set-Cookie to String {:?}: {:?}",
+                            set_cookie, e
+                        );
+                        e
+                    })
+                    .ok()
+                    .and_then(|sc| match RawCookie::parse(sc.to_owned()) {
+                        Ok(raw_cookie) => Some(raw_cookie),
+                        Err(e) => {
+                            debug!(
+                                "error parsing Set-Cookie to RawCookie {:?}: {:?}",
+                                set_cookie, e
+                            );
+                            None
+                        }
+                    })
+            })
+            .collect::<Vec<_>>()
     }
 
     fn final_url(&self) -> Option<&Url> {
@@ -123,26 +136,41 @@ mod tests {
         }};
     }
 
+    fn assert_cookies_count(session: &mut ReqwestSession, url: &str, add: bool) {
+        let cookies_count_origin = session.store.iter_unexpired().count();
+        session
+            .get(url)
+            .unwrap_or_else(|_| panic!("session get {} failed", url));
+        let cookies_count = session.store.iter_unexpired().count();
+        let cookies_count_added = if add {
+            reqwest::Client::new()
+                .get(url)
+                .send()
+                .unwrap_or_else(|_| panic!("cilent get {} failed", url))
+                .headers()
+                .get_all(reqwest::header::SET_COOKIE)
+                .iter()
+                .count()
+        } else {
+            0
+        };
+        let cookies_count_expected = cookies_count_origin + cookies_count_added;
+        assert_eq!(cookies_count, cookies_count_expected);
+    }
+
     #[test]
     fn test_gets() {
         env_logger::init();
         let mut s = ReqwestSession::new(reqwest::Client::new());
         dump!("init", s);
-        s.get("http://www.google.com").expect("www.google.com get failed");
-        let c1 = s.store.iter_unexpired().count();
-        assert!(c1 > 0);
-        s.get("http://www.google.com").expect("www.google.com get failed");
-        assert!(c1 == s.store.iter_unexpired().count()); // no new cookies on re-request
+        assert_cookies_count(&mut s, "http://www.google.com", true);
         dump!("after google", s);
-        s.get("http://www.yahoo.com").expect("www.yahoo.com get failed");
+        assert_cookies_count(&mut s, "http://www.google.com", false);
+        dump!("after google again", s);
+        // yahoo doesn't set any cookies; how nice of them
+        assert_cookies_count(&mut s, "http://www.yahoo.com", false);
         dump!("after yahoo", s);
-        let c2 = s.store.iter_unexpired().count();
-        assert!(c2 > 0);
-        assert!(c2 == c1); // yahoo doesn't set any cookies; how nice of them
-        s.get("http://www.msn.com").expect("www.msn.com get failed");
+        assert_cookies_count(&mut s, "http://www.msn.com", true);
         dump!("after msn", s);
-        let c3 = s.store.iter_unexpired().count();
-        assert!(c3 > 0);
-        assert!(c3 > c2);
     }
 }
