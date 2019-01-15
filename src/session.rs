@@ -15,7 +15,7 @@ pub trait SessionRequest {
 /// for use with a `Session`
 pub trait SessionResponse {
     /// Parse the Set-Cookie header and return the set of cookies if present
-    fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>>;
+    fn parse_set_cookie(&self) -> Vec<RawCookie<'static>>;
     /// Return the final Url for the response. In cases such as redirects,
     /// such Url may differ from the Request Url. May return `None` if unavailable.
     fn final_url(&self) -> Option<&Url>;
@@ -152,10 +152,9 @@ impl<C: SessionClient> Session<C> {
             let request = prepare(request);
             client.send(request)?
         };
-        if let Some(cookies) = response.parse_set_cookie() {
-            let final_url: &Url = response.final_url().unwrap_or(url);
-            store.store_response_cookies(cookies.into_iter(), final_url);
-        }
+        let cookies = response.parse_set_cookie();
+        let final_url: &Url = response.final_url().unwrap_or(url);
+        store.store_response_cookies(cookies.into_iter(), final_url);
         Ok(response)
     }
 }
@@ -259,8 +258,8 @@ mod tests {
 
     struct TestClientResponse(String, Vec<RawCookie<'static>>);
     impl SessionResponse for TestClientResponse {
-        fn parse_set_cookie(&self) -> Option<Vec<RawCookie<'static>>> {
-            Some(self.1.clone())
+        fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
+            self.1.clone()
         }
 
         fn final_url(&self) -> Option<&Url> {
