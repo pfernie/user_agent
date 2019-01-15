@@ -2,11 +2,12 @@
 authors = ["patrick.fernie@gmail.com"]
 name = "user_agent"
 description = "Provides the concept of a user agent session, storing and retrieving cookies over multiple HTTP requests (a `Session`)."
-version = "0.6.4"
+version = "0.6.5"
 edition = "2018"
 repository = "https://github.com/pfernie/user_agent"
 documentation = "https://docs.rs/user_agent"
 license = "MIT/Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 cookie_store = "0.5.0"
