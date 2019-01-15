@@ -1,3 +1,6 @@
+= v0.6.5 =
+* Bugfix for multiple Set-Cookie values
+
 = v0.6.3 =
 * Add `SessionClient::send()` fn, and simplify the `{get,post,...}_with` functions.
   * BREAKING: `*_with` fns now take a `prepare` `FnOnce` returning `Self::Request`,
