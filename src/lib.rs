@@ -1,5 +1,3 @@
-#[cfg(test)]
-use env_logger;
 use failure;
 
 #[macro_use]
