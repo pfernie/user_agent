@@ -1,3 +1,6 @@
+= v0.6.0 =
+* Introduce features `default-tls` and `rustls-tls` to enable control of dependency (`reqwest`) features
+
 = v0.6.5 =
 * Bugfix for multiple Set-Cookie values
 

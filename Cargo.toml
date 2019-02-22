@@ -2,7 +2,7 @@
 authors = ["patrick.fernie@gmail.com"]
 name = "user_agent"
 description = "Provides the concept of a user agent session, storing and retrieving cookies over multiple HTTP requests (a `Session`)."
-version = "0.6.5"
+version = "0.6.6"
 edition = "2018"
 repository = "https://github.com/pfernie/user_agent"
 documentation = "https://docs.rs/user_agent"
@@ -10,18 +10,18 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 
 [dependencies]
-cookie_store = "0.5.0"
+cookie_store = "0.5.1"
 url = "1.7.2"
 cookie = "0.11.0"
 failure = "0.1.5"
-reqwest = { version = "0.9.7", default-features = false }
+reqwest = { version = "0.9.10", default-features = false }
 log = "0.4.6"
 
 [dev-dependencies]
 env_logger = "0.6.0"
-pretty_assertions = "0.5.1"
+pretty_assertions = "0.6.1"
 time = "0.1.42"
-serde_json = "1.0.34"
+serde_json = "1.0.38"
 
 [features]
 default = ["default-tls"]
