@@ -3,6 +3,8 @@
 
 [Documentation](https://docs.rs/user_agent/)
 
+NOTE: `reqwest` provides support for a [cookie_store](https://docs.rs/reqwest/0.9.16/reqwest/struct.ClientBuilder.html#method.cookie_store) as of `v0.9.14`. It currently lacks an API for saving/loading a `CookieStore`, but consider using the directly provided functionality in lieu of this crate.
+
 Provides the concept of a user agent session, storing and retrieving cookies over multiple HTTP requests (a `Session`).
 
 Included is an implementation of `Session` using a [reqwest](https://crates.io/crates/reqwest) `reqwest::Client`.
