@@ -1,3 +1,7 @@
+= v0.7.0 =
+* Update to latest `cookie_store` and `cookie`
+* Document `cookie_store` support availibility in `reqwest`
+
 = v0.6.0 =
 * Introduce features `default-tls` and `rustls-tls` to enable control of dependency (`reqwest`) features
 
