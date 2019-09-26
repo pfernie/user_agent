@@ -1,6 +1,5 @@
 use crate::session::{Session, SessionClient, SessionRequest, SessionResponse};
 use cookie::Cookie as RawCookie;
-use failure::Fail;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
@@ -57,13 +56,22 @@ impl SessionRequest for reqwest::RequestBuilder {
     }
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum ReqwestSessionError {
-    #[fail(display = "URL parse error: {}", _0)]
     ParseUrlError(url::ParseError),
-    #[fail(display = "Reqwest error: {}", _0)]
     ReqwestError(reqwest::Error),
 }
+
+impl std::fmt::Display for ReqwestSessionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ReqwestSessionError::ParseUrlError(e) => write!(f, "URL parse error: {}", e),
+            ReqwestSessionError::ReqwestError(e) => write!(f, "Reqwest error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for ReqwestSessionError {}
 
 impl From<url::ParseError> for ReqwestSessionError {
     fn from(e: url::ParseError) -> Self {

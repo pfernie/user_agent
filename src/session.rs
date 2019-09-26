@@ -94,31 +94,31 @@ impl<C: SessionClient> Session<C> {
         client: C,
         reader: R,
         cookie_from_str: F,
-    ) -> Result<Session<C>, failure::Error>
+    ) -> Result<Session<C>, crate::Error>
     where
         R: BufRead,
         F: Fn(&str) -> ::std::result::Result<Cookie<'static>, E>,
-        failure::Error: From<E>,
+        E: std::error::Error + Send + Sync + 'static,
     {
         let store = CookieStore::load(reader, cookie_from_str)?;
         Ok(Session { client, store })
     }
 
-    pub fn load_json<R: BufRead>(client: C, reader: R) -> Result<Session<C>, failure::Error> {
+    pub fn load_json<R: BufRead>(client: C, reader: R) -> Result<Session<C>, crate::Error> {
         let store = CookieStore::load_json(reader)?;
         Ok(Session { client, store })
     }
 
-    pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> Result<(), failure::Error>
+    pub fn save<W, E, F>(&self, writer: &mut W, cookie_to_string: F) -> Result<(), crate::Error>
     where
         W: Write,
         F: Fn(&Cookie<'_>) -> ::std::result::Result<String, E>,
-        failure::Error: From<E>,
+        E: std::error::Error + Send + Sync + 'static,
     {
         self.store.save(writer, cookie_to_string)
     }
 
-    pub fn save_json<W: Write>(&self, writer: &mut W) -> Result<(), failure::Error> {
+    pub fn save_json<W: Write>(&self, writer: &mut W) -> Result<(), crate::Error> {
         self.store.save_json(writer)
     }
 

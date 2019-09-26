@@ -1,5 +1,4 @@
-use failure;
-
+type Error = Box<dyn std::error::Error + Send + Sync>;
 #[macro_use]
 mod session;
 mod reqwest_session;

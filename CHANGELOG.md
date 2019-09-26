@@ -1,3 +1,6 @@
+= v0.8.0 =
+* remove `failure` for Error handling
+
 = v0.7.0 =
 * Update to latest `cookie_store` and `cookie`
 * Document `cookie_store` support availibility in `reqwest`
