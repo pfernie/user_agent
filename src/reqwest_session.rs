@@ -5,6 +5,7 @@ use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
 use url::Url;
 
+
 impl SessionResponse for reqwest::Response {
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         self.headers()
