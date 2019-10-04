@@ -14,11 +14,12 @@ pub trait SessionRequest {
 /// Trait representing responses which may have a Set-Cookie header, appropriate
 /// for use with a `Session`
 pub trait SessionResponse {
+    type Url: IntoUrl + Clone;
     /// Parse the Set-Cookie header and return the set of cookies if present
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>>;
     /// Return the final Url for the response. In cases such as redirects,
     /// such Url may differ from the Request Url. May return `None` if unavailable.
-    fn final_url(&self) -> Option<&Url>;
+    fn final_url(&self) -> Option<&Self::Url>;
 }
 
 macro_rules! define_with_fn {
@@ -141,11 +142,12 @@ impl<C: SessionClient> Session<C> {
         prepare: P,
     ) -> ::std::result::Result<<C as SessionClient>::Response, <C as SessionClient>::SendError>
     where
-        P: FnOnce(
-            <C as SessionClient>::Request,
-        ) -> <C as SessionClient>::Request,
+        P: FnOnce(<C as SessionClient>::Request) -> <C as SessionClient>::Request,
     {
-        let Session {ref client, ref mut store} = self;
+        let Session {
+            ref client,
+            ref mut store,
+        } = self;
         let response = {
             let cookies = store.get_request_cookies(url).collect();
             let request = request.add_cookies(cookies);
@@ -153,7 +155,12 @@ impl<C: SessionClient> Session<C> {
             client.send(request)?
         };
         let cookies = response.parse_set_cookie();
-        let final_url: &Url = response.final_url().unwrap_or(url);
+        let final_url = response
+            .final_url()
+            .map(|u| (*u).clone().into_url())
+            .transpose()?;
+        let final_url = final_url.as_ref().unwrap_or(url);
+        //let final_url: &Url = response.final_url().unwrap_or(url);
         store.store_response_cookies(cookies.into_iter(), final_url);
         Ok(response)
     }
@@ -258,6 +265,7 @@ mod tests {
 
     struct TestClientResponse(String, Vec<RawCookie<'static>>);
     impl SessionResponse for TestClientResponse {
+        type Url = url::Url;
         fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
             self.1.clone()
         }
@@ -404,7 +412,10 @@ mod tests {
 
     macro_rules! not_has {
         ($store: ident, $n: expr) => {
-            assert_eq!($store.store.iter_any().filter(|c| c.name() == $n).count(), 0);
+            assert_eq!(
+                $store.store.iter_any().filter(|c| c.name() == $n).count(),
+                0
+            );
         };
     }
 
@@ -432,17 +443,21 @@ mod tests {
             s.store.parse("0=_", &url).unwrap();
             s.store.parse("1=a; Max-Age=120", &url).unwrap();
             s.store.parse("2=b; Max-Age=120", &url).unwrap();
-            s.store.parse("secure=zz; Max-Age=120; Secure", &url).unwrap();
-            s.store.parse(
-                "foo_domain=zzz",
-                &Url::parse("http://foo.example.com").unwrap(),
-            )
-            .unwrap(); // should not be included in our www.example.com request
-            s.store.parse(
-                "foo_domain_pers=zzz; Max-Age=120",
-                &Url::parse("http://foo.example.com").unwrap(),
-            )
-            .unwrap(); // should not be included in our www.example.com request
+            s.store
+                .parse("secure=zz; Max-Age=120; Secure", &url)
+                .unwrap();
+            s.store
+                .parse(
+                    "foo_domain=zzz",
+                    &Url::parse("http://foo.example.com").unwrap(),
+                )
+                .unwrap(); // should not be included in our www.example.com request
+            s.store
+                .parse(
+                    "foo_domain_pers=zzz; Max-Age=120",
+                    &Url::parse("http://foo.example.com").unwrap(),
+                )
+                .unwrap(); // should not be included in our www.example.com request
             has_sess!(s, "www.example.com", "/", "0");
             has_pers!(s, "www.example.com", "/", "1");
             has_pers!(s, "www.example.com", "/", "2");

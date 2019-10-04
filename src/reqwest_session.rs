@@ -3,10 +3,36 @@ use cookie::Cookie as RawCookie;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
+use reqwest::Url as ReqwestUrl;
 use url::Url;
 
+trait UrlExt {
+    type Target;
+    fn compat(&self) -> Self::Target;
+}
+
+impl UrlExt for Url {
+    type Target = ReqwestUrl;
+    fn compat(&self) -> Self::Target {
+        ReqwestUrl::parse(self.as_str()).unwrap()
+    }
+}
+
+impl UrlExt for ReqwestUrl {
+    type Target = Url;
+    fn compat(&self) -> Self::Target {
+        Url::parse(self.as_str()).unwrap()
+    }
+}
+
+impl crate::utils::IntoUrl for ReqwestUrl {
+    fn into_url(self) -> Result<Url, url::ParseError> {
+        Url::parse(self.as_str())
+    }
+}
 
 impl SessionResponse for reqwest::Response {
+    type Url = ReqwestUrl;
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         self.headers()
             .get_all(SET_COOKIE)
@@ -36,8 +62,8 @@ impl SessionResponse for reqwest::Response {
             .collect::<Vec<_>>()
     }
 
-    fn final_url(&self) -> Option<&Url> {
-        Some(self.url())
+    fn final_url(&self) -> Option<&ReqwestUrl> {
+        Some(&self.url())
     }
 }
 
@@ -94,19 +120,19 @@ impl SessionClient for reqwest::Client {
     type SendError = ReqwestSessionError;
 
     fn get_request(&self, url: &Url) -> Self::Request {
-        self.get(url.clone())
+        self.get(url.clone().compat())
     }
     fn put_request(&self, url: &Url) -> Self::Request {
-        self.put(url.clone())
+        self.put(url.clone().compat())
     }
     fn head_request(&self, url: &Url) -> Self::Request {
-        self.head(url.clone())
+        self.head(url.clone().compat())
     }
     fn delete_request(&self, url: &Url) -> Self::Request {
-        self.delete(url.clone())
+        self.delete(url.clone().compat())
     }
     fn post_request(&self, url: &Url) -> Self::Request {
-        self.post(url.clone())
+        self.post(url.clone().compat())
     }
 
     fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError> {
