@@ -11,6 +11,11 @@ Included is an implementation of `Session` using a [reqwest](https://crates.io/c
 
 The RFC6265 implementation has been moved to a separate [repo](https://github.com/pfernie/cookie_store)/[crate](https://crates.io/crates/cookie_store).
 
+## Features
+`preserve_order` - enable the `preserve_order` feature of `cookie_store`
+`default-tls` - enable the `default-tls` feature of `reqwest`
+`rustls-tls` - enable the `rustls-tls` feature of `reqwest`
+
 ## License
 This project is licensed and distributed under the terms of both the MIT license and Apache License (Version 2.0).
 

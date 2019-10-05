@@ -23,7 +23,9 @@ time = "0.1.42"
 serde_json = "1.0.41"
 
 [features]
-default = ["default-tls"]
+default = ["default-tls", "preserve_order"]
+
+preserve_order = ["cookie_store/preserve_order"]
 
 default-tls = ["reqwest/default-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
