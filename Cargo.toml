@@ -11,9 +11,9 @@ readme = "README.md"
 
 [dependencies]
 cookie_store = "0.10.0"
-url = "2.1.0"
+url = "2.1.1"
 cookie = "0.12.0"
-reqwest = { version = "0.9.21", default-features = false }
+reqwest = { version = "0.10.1", features = ["json", "blocking"] }
 log = "0.4.8"
 
 [dev-dependencies]

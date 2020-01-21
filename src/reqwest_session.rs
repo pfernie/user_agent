@@ -3,36 +3,10 @@ use cookie::Cookie as RawCookie;
 use log::debug;
 use reqwest;
 use reqwest::header::{COOKIE, SET_COOKIE};
-use reqwest::Url as ReqwestUrl;
 use url::Url;
 
-trait UrlExt {
-    type Target;
-    fn compat(&self) -> Self::Target;
-}
-
-impl UrlExt for Url {
-    type Target = ReqwestUrl;
-    fn compat(&self) -> Self::Target {
-        ReqwestUrl::parse(self.as_str()).unwrap()
-    }
-}
-
-impl UrlExt for ReqwestUrl {
-    type Target = Url;
-    fn compat(&self) -> Self::Target {
-        Url::parse(self.as_str()).unwrap()
-    }
-}
-
-impl crate::utils::IntoUrl for ReqwestUrl {
-    fn into_url(self) -> Result<Url, url::ParseError> {
-        Url::parse(self.as_str())
-    }
-}
-
-impl SessionResponse for reqwest::Response {
-    type Url = ReqwestUrl;
+impl SessionResponse for reqwest::blocking::Response {
+    type Url = url::Url;
     fn parse_set_cookie(&self) -> Vec<RawCookie<'static>> {
         self.headers()
             .get_all(SET_COOKIE)
@@ -62,12 +36,12 @@ impl SessionResponse for reqwest::Response {
             .collect::<Vec<_>>()
     }
 
-    fn final_url(&self) -> Option<&ReqwestUrl> {
+    fn final_url(&self) -> Option<&url::Url> {
         Some(&self.url())
     }
 }
 
-impl SessionRequest for reqwest::RequestBuilder {
+impl SessionRequest for reqwest::blocking::RequestBuilder {
     fn add_cookies(self, cookies: Vec<&RawCookie<'static>>) -> Self {
         if cookies.is_empty() {
             debug!("no cookies to add to request");
@@ -112,27 +86,27 @@ impl From<reqwest::Error> for ReqwestSessionError {
     }
 }
 
-pub type ReqwestSession = Session<reqwest::Client>;
+pub type ReqwestSession = Session<reqwest::blocking::Client>;
 
-impl SessionClient for reqwest::Client {
-    type Request = reqwest::RequestBuilder;
-    type Response = reqwest::Response;
+impl SessionClient for reqwest::blocking::Client {
+    type Request = reqwest::blocking::RequestBuilder;
+    type Response = reqwest::blocking::Response;
     type SendError = ReqwestSessionError;
 
     fn get_request(&self, url: &Url) -> Self::Request {
-        self.get(url.clone().compat())
+        self.get(url.clone())
     }
     fn put_request(&self, url: &Url) -> Self::Request {
-        self.put(url.clone().compat())
+        self.put(url.clone())
     }
     fn head_request(&self, url: &Url) -> Self::Request {
-        self.head(url.clone().compat())
+        self.head(url.clone())
     }
     fn delete_request(&self, url: &Url) -> Self::Request {
-        self.delete(url.clone().compat())
+        self.delete(url.clone())
     }
     fn post_request(&self, url: &Url) -> Self::Request {
-        self.post(url.clone().compat())
+        self.post(url.clone())
     }
 
     fn send(&self, request: Self::Request) -> Result<Self::Response, Self::SendError> {
@@ -178,7 +152,7 @@ mod tests {
             .unwrap_or_else(|_| panic!("session get {} failed", url));
         let cookies_count = session.store.iter_unexpired().count();
         let cookies_count_added = if add {
-            reqwest::Client::new()
+            reqwest::blocking::Client::new()
                 .get(url)
                 .send()
                 .unwrap_or_else(|_| panic!("cilent get {} failed", url))
@@ -196,7 +170,7 @@ mod tests {
     #[test]
     fn test_gets() {
         env_logger::init();
-        let mut s = ReqwestSession::new(reqwest::Client::new());
+        let mut s = ReqwestSession::new(reqwest::blocking::Client::new());
         dump!("init", s);
         assert_cookies_count(&mut s, "http://www.google.com", true);
         dump!("after google", s);
