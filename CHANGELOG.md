@@ -1,3 +1,11 @@
+= v0.9.0 =
+* Update to `reqwest` `0.10.1`. (PR #26 @incker2)
+  * New version of `reqwest` makes the `async` client the default. For `user_agent`, utilize
+    `reqwest::blocking::Client` instead.
+  * `reqwest` version of the `url` crate is now consistent with `user_agent`, allowing the removal
+    of some round-trip encode/decode logic which handle the crate version mismatch previously.
+* Minor dependency bumps
+
 = v0.8.0 =
 * remove `failure` for Error handling
 
