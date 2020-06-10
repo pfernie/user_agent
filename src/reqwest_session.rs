@@ -124,9 +124,12 @@ mod tests {
     macro_rules! dump {
         ($e: expr, $i: ident) => {{
             use serde_json;
-            use time::now_utc;
             println!("");
-            println!("==== {}: {} ====", $e, now_utc().rfc3339());
+            println!(
+                "==== {}: {} ====",
+                $e,
+                time::OffsetDateTime::now_utc().format("%Y-%m-%dT%H:%M:%SZ")
+            );
             for c in $i.store.iter_any() {
                 println!(
                     "{} {}",

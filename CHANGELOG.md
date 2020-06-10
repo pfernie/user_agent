@@ -1,3 +1,6 @@
+= v0.11.0 =
+* Update to `cookie_store 0.12`, `cookie 0.14`, `time 0.2`
+
 = v0.9.0 =
 * Update to `reqwest` `0.10.1`. (PR #26 @incker2)
   * New version of `reqwest` makes the `async` client the default. For `user_agent`, utilize
